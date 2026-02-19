@@ -21,8 +21,9 @@ class Coach {
   /// Create a Coach object from JSON
   factory Coach.fromJson(Map<String, dynamic> json) {
     return Coach(
-      id: json['id'] as int,
-      trainId: json['trainId'] as int,
+      // API returns "coachId"; fall back to "id" for backward compat
+      id: (json['coachId'] ?? json['id'] ?? 0) as int,
+      trainId: (json['trainId'] ?? 0) as int,
       coachName: json['coachName'] as String,
       latestStatus: json['latestStatus'] as String?,
       lastReportedAt: json['lastReportedAt'] != null

@@ -4,6 +4,7 @@ import 'providers/user_provider.dart';
 import 'providers/train_provider.dart';
 import 'providers/coach_provider.dart';
 import 'providers/sos_provider.dart';
+import 'providers/bluetooth_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/sos_screen.dart';
@@ -23,6 +24,7 @@ class TrainAssistApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TrainProvider()),
         ChangeNotifierProvider(create: (_) => CoachProvider()),
         ChangeNotifierProvider(create: (_) => SOSProvider()),
+        ChangeNotifierProvider(create: (_) => BluetoothProvider()),
       ],
       child: const _AppContent(),
     );

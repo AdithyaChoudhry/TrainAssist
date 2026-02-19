@@ -19,6 +19,15 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _destinationController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-load all trains when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<TrainProvider>(context, listen: false).searchTrains(null, null);
+    });
+  }
+
+  @override
   void dispose() {
     _sourceController.dispose();
     _destinationController.dispose();
@@ -30,16 +39,6 @@ class _SearchScreenState extends State<SearchScreen> {
     
     final source = _sourceController.text.trim();
     final destination = _destinationController.text.trim();
-    
-    if (source.isEmpty && destination.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter source or destination'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
     
     await trainProvider.searchTrains(
       source.isEmpty ? null : source,
@@ -62,13 +61,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final trainProvider = Provider.of<TrainProvider>(context, listen: false);
     final source = _sourceController.text.trim();
     final destination = _destinationController.text.trim();
-    
-    if (source.isNotEmpty || destination.isNotEmpty) {
-      await trainProvider.searchTrains(
-        source.isEmpty ? null : source,
-        destination.isEmpty ? null : destination,
-      );
-    }
+    await trainProvider.searchTrains(
+      source.isEmpty ? null : source,
+      destination.isEmpty ? null : destination,
+    );
   }
 
   void _logout() {

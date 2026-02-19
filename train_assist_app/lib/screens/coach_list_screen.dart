@@ -5,6 +5,7 @@ import '../models/train_model.dart';
 import '../models/coach_model.dart';
 import '../providers/coach_provider.dart';
 import '../providers/user_provider.dart';
+import '../providers/bluetooth_provider.dart';
 
 /// Screen displaying coaches for a specific train with crowd status
 class CoachListScreen extends StatefulWidget {
@@ -102,6 +103,156 @@ class _CoachListScreenState extends State<CoachListScreen> {
         ),
       ),
     );
+  }
+
+  /// Runs a Bluetooth scan and pre-fills crowd level in the report dialog
+  Future<void> _showBluetoothScanDialog(Coach coach) async {
+    final btProvider = Provider.of<BluetoothProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    btProvider.clearResult();
+
+    // Show scanning dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => ChangeNotifierProvider.value(
+        value: btProvider,
+        child: Consumer<BluetoothProvider>(
+          builder: (_, bt, __) {
+            final done = !bt.isScanning && bt.lastResult != null;
+            final result = bt.lastResult;
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(
+                    done ? Icons.bluetooth_connected : Icons.bluetooth_searching,
+                    color: done ? Colors.blue : Colors.blueGrey,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Bluetooth Crowd Scan'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!done) ...[  
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(
+                      bt.scanProgress.isEmpty
+                          ? 'Initialising scan...'
+                          : bt.scanProgress,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Detecting nearby Bluetooth devices…',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ] else if (result != null) ...[  
+                    Icon(
+                      Icons.bluetooth_connected,
+                      size: 48,
+                      color: result.crowdLevel == 'Low'
+                          ? Colors.green
+                          : result.crowdLevel == 'Medium'
+                              ? Colors.orange
+                              : Colors.red,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${result.deviceCount} devices detected nearby',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: result.crowdLevel == 'Low'
+                            ? Colors.green[50]
+                            : result.crowdLevel == 'Medium'
+                                ? Colors.orange[50]
+                                : Colors.red[50],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: result.crowdLevel == 'Low'
+                              ? Colors.green
+                              : result.crowdLevel == 'Medium'
+                                  ? Colors.orange
+                                  : Colors.red,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        '${result.crowdLevel} Crowd',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: result.crowdLevel == 'Low'
+                              ? Colors.green[700]
+                              : result.crowdLevel == 'Medium'
+                                  ? Colors.orange[700]
+                                  : Colors.red[700],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _crowdLevelDescription(result.deviceCount),
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  if (bt.errorMessage != null)
+                    Text(bt.errorMessage!,
+                        style: const TextStyle(color: Colors.red)),
+                ],
+              ),
+              actions: done && result != null
+                  ? [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(dialogCtx);
+                          _submitCrowdReport(
+                            coach.id,
+                            userProvider.userName ?? 'User',
+                            result.crowdLevel,
+                          );
+                        },
+                        icon: const Icon(Icons.check),
+                        label: Text('Submit "${result.crowdLevel}"'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: result.crowdLevel == 'Low'
+                              ? Colors.green
+                              : result.crowdLevel == 'Medium'
+                                  ? Colors.orange
+                                  : Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ]
+                  : null,
+            );
+          },
+        ),
+      ),
+    );
+
+    // Start the scan after dialog is shown
+    await btProvider.startScan();
+  }
+
+  String _crowdLevelDescription(int devices) {
+    if (devices <= 3) return '0–3 devices = Low crowd (seats available)';
+    if (devices <= 8) return '4–8 devices = Medium crowd (some seats available)';
+    return '9+ devices = High crowd (standing room only)';
   }
 
   Future<void> _submitCrowdReport(
@@ -249,6 +400,7 @@ class _CoachListScreenState extends State<CoachListScreen> {
                             return _CoachCard(
                               coach: coach,
                               onUpdatePressed: () => _showCrowdReportDialog(coach),
+                              onBtScanPressed: () => _showBluetoothScanDialog(coach),
                               formatTimestamp: _formatTimestamp,
                             );
                           },
@@ -265,11 +417,13 @@ class _CoachListScreenState extends State<CoachListScreen> {
 class _CoachCard extends StatelessWidget {
   final Coach coach;
   final VoidCallback onUpdatePressed;
+  final VoidCallback onBtScanPressed;
   final String Function(DateTime?) formatTimestamp;
 
   const _CoachCard({
     required this.coach,
     required this.onUpdatePressed,
+    required this.onBtScanPressed,
     required this.formatTimestamp,
   });
 
@@ -376,13 +530,29 @@ class _CoachCard extends StatelessWidget {
             
             const SizedBox(height: 12),
             
-            // Update Button
+            // Bluetooth Auto-Detect Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onBtScanPressed,
+                icon: const Icon(Icons.bluetooth_searching, size: 18),
+                label: const Text('Auto-Detect Crowd (Bluetooth)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[700],
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 6),
+            
+            // Manual Update Button
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: onUpdatePressed,
-                icon: const Icon(Icons.update),
-                label: const Text('Update Crowd Status'),
+                icon: const Icon(Icons.edit, size: 18),
+                label: const Text('Manual Update'),
               ),
             ),
           ],
