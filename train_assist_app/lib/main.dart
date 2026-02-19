@@ -117,15 +117,17 @@ class _AppContentState extends State<_AppContent> {
         useMaterial3: true,
       ),
       
-      // Route based on user login status
-      initialRoute: '/',
-      routes: {
-        '/': (context) {
-          final userProvider = Provider.of<UserProvider>(context);
-          return userProvider.isUserSet 
-              ? const SearchScreen() 
+      // home uses Consumer so it can read UserProvider safely
+      home: Consumer<UserProvider>(
+        builder: (context, userProvider, _) {
+          return userProvider.isUserSet
+              ? const SearchScreen()
               : const WelcomeScreen();
         },
+      ),
+      
+      // Named routes for in-app navigation
+      routes: {
         '/welcome': (context) => const WelcomeScreen(),
         '/search': (context) => const SearchScreen(),
         '/sos': (context) => const SOSScreen(),
