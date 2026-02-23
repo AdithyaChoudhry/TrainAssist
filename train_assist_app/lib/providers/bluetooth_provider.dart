@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../services/bluetooth_service.dart';
 
-/// State management for Bluetooth crowd detection scans
+/// State management for real Bluetooth crowd detection
 class BluetoothProvider extends ChangeNotifier {
   final BluetoothCrowdService _btService = BluetoothCrowdService();
 
@@ -19,17 +19,17 @@ class BluetoothProvider extends ChangeNotifier {
   /// The crowd level detected from the last scan ("Low", "Medium", "High")
   String? get detectedCrowdLevel => _lastResult?.crowdLevel;
 
-  /// Runs a 5-second Bluetooth scan and updates state with results
-  Future<BluetoothScanResult?> startScan() async {
+  /// Runs a Bluetooth scan (real BLE on device, physics sim on web).
+  Future<BluetoothScanResult?> startScan({int coachCapacity = kDefaultCoachCapacity}) async {
     if (_isScanning) return null;
 
     _isScanning = true;
-    _scanProgress = 'Starting Bluetooth scan...';
+    _scanProgress = 'Requesting Bluetooth access…';
     _errorMessage = null;
     _lastResult = null;
     notifyListeners();
 
-    final progressController = StreamController<String>();
+    final progressController = StreamController<String>.broadcast();
     final sub = progressController.stream.listen((msg) {
       _scanProgress = msg;
       notifyListeners();
@@ -37,14 +37,15 @@ class BluetoothProvider extends ChangeNotifier {
 
     try {
       final result = await _btService.scanForCrowd(
+        coachCapacity: coachCapacity,
         progressController: progressController,
       );
       _lastResult = result;
-      _scanProgress = 'Done — ${result.deviceCount} devices → ${result.crowdLevel} crowd';
+      _scanProgress = result.summaryLine;
       notifyListeners();
       return result;
     } catch (e) {
-      _errorMessage = 'Bluetooth scan failed: $e';
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       _scanProgress = '';
       notifyListeners();
       return null;

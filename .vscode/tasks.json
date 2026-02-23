@@ -1,0 +1,46 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Kill port 5000",
+			"type": "shell",
+			"command": "lsof -ti :5000 | xargs kill -9 2>/dev/null || echo 'Port 5000 is free'",
+			"group": "build"
+		},
+		{
+			"label": "▶ Start Backend API",
+			"type": "shell",
+			"command": "cd /Users/adithyachoudhrym/TrainAssist/TrainAssist.Api && dotnet run --urls http://localhost:5000",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "▶ Start Flutter Web (Chrome)",
+			"type": "shell",
+			"command": "cd /Users/adithyachoudhrym/TrainAssist/train_assist_app && flutter run -d chrome --web-port 8080",
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Stop processes on port 5000",
+			"type": "shell",
+			"command": "lsof -ti :5000 | xargs kill -9 2>/dev/null || echo 'No processes to kill on port 5000'"
+		},
+		{
+			"label": "Start Backend API",
+			"type": "shell",
+			"command": "cd /Users/adithyachoudhrym/TrainAssist/TrainAssist.Api && dotnet run --urls http://127.0.0.1:5000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Flutter in Chrome",
+			"type": "shell",
+			"command": "cd /Users/adithyachoudhrym/TrainAssist/train_assist_app && flutter run -d chrome --web-port 8080",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

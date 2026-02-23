@@ -15,7 +15,9 @@
 class ApiConfig {
   // Base URL for the backend API
   // Change this based on your testing environment
-  static const String baseUrl = 'http://localhost:5000';
+  // Use 127.0.0.1 in browser to avoid IPv6 (::1) resolution issues that can
+  // cause "Failed to fetch" errors when the backend is bound to 127.0.0.1.
+  static const String baseUrl = 'http://127.0.0.1:5000';
   
   // API endpoints
   static const String healthEndpoint = '/api/health';
