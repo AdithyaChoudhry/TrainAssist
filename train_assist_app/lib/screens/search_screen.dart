@@ -70,7 +70,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _logout() {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     userProvider.clearUserName();
-    Navigator.of(context).pushReplacementNamed('/');
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   @override

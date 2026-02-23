@@ -5,7 +5,8 @@ import 'providers/train_provider.dart';
 import 'providers/coach_provider.dart';
 import 'providers/sos_provider.dart';
 import 'providers/bluetooth_provider.dart';
-import 'screens/welcome_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/sos_screen.dart';
 
@@ -119,18 +120,19 @@ class _AppContentState extends State<_AppContent> {
         useMaterial3: true,
       ),
       
-      // home uses Consumer so it can read UserProvider safely
+      // home uses Consumer to route based on login state
       home: Consumer<UserProvider>(
         builder: (context, userProvider, _) {
           return userProvider.isUserSet
               ? const SearchScreen()
-              : const WelcomeScreen();
+              : const LoginScreen();
         },
       ),
-      
+
       // Named routes for in-app navigation
       routes: {
-        '/welcome': (context) => const WelcomeScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
         '/search': (context) => const SearchScreen(),
         '/sos': (context) => const SOSScreen(),
       },
