@@ -33,6 +33,8 @@ class LocalDataService {
 
   // ── 25 coach slots with realistic crowd patterns per time-of-day ──────────
   // Each entry: (displayName, [morning/night, day, evening-rush])
+  // The 'base' level here is for a medium-popularity train.
+  // _buildCoaches applies a trainId-based offset so every train is different.
   static const List<(String, List<String>)> _coachSlots = [
     ('GS-1 - General',      ['High',   'High',   'High'  ]),
     ('GS-2 - General',      ['High',   'High',   'High'  ]),
@@ -61,6 +63,24 @@ class LocalDataService {
     ('D2 - Divyaangjan',    ['Low',    'Low',    'Low'   ]),
   ];  // 25 slots total
 
+  static const _levels = ['Low', 'Medium', 'High'];
+
+  /// Apply per-train offset so every train shows unique crowd distribution.
+  /// trainId mod patterns create 5 distinct 'popularity profiles':
+  ///   0 = very busy (+2 shift), 1 = busy (+1), 2 = normal (0),
+  ///   3 = light (-1),            4 = very light (-2)
+  static String _variedLevel(String base, int trainId, int slot) {
+    final baseIdx = _levels.indexOf(base);
+    // Combine trainId and slot position for extra per-coach randomness
+    const offsets = [-1, 0, 1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, -1,
+                      0, 1, -1, 0, 1]; // 20 entries matching 20 trains
+    final trainOffset = offsets[trainId - 1];
+    // Also add a small slot-based jitter so coaches of same type differ
+    final slotJitter = ((trainId * 3 + slot * 7) % 3) - 1; // -1, 0, or 1
+    final combined = (baseIdx + trainOffset + slotJitter).clamp(0, 2);
+    return _levels[combined];
+  }
+
   // ── Hardcoded coaches per train ───────────────────────────────────────────
   static Map<int, List<Coach>> _buildCoaches() {
     final hour = DateTime.now().hour;
@@ -70,11 +90,17 @@ class LocalDataService {
     for (int trainId = 1; trainId <= 20; trainId++) {
       result[trainId] = List.generate(_coachSlots.length, (slot) {
         final (name, patterns) = _coachSlots[slot];
+        final base = patterns[bucket];
+        // GS (General) & H (First AC) coaches keep their fixed level
+        final isFixed = name.startsWith('GS') ||
+            name.startsWith('H') ||
+            name.startsWith('D');
+        final level = isFixed ? base : _variedLevel(base, trainId, slot);
         return Coach(
           id: (trainId - 1) * 25 + slot + 1,
           trainId: trainId,
           coachName: name,
-          latestStatus: patterns[bucket],
+          latestStatus: level,
         );
       });
     }

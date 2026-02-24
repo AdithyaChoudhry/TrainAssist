@@ -21,6 +21,9 @@ void main() {
   runApp(const TrainAssistApp());
 }
 
+// Global navigator key so we can show dialogs from providers/timers
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class TrainAssistApp extends StatelessWidget {
   const TrainAssistApp({super.key});
 
@@ -58,6 +61,62 @@ class _AppContentState extends State<_AppContent> {
     _initializeApp();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Attach a one-time listener for station alert trigger messages
+    // so popups appear globally regardless of which screen is open
+    final alertProv = context.read<StationAlertProvider>();
+    alertProv.addListener(_onAlertTriggered);
+  }
+
+  void _onAlertTriggered() {
+    final alertProv = context.read<StationAlertProvider>();
+    final msg = alertProv.triggerMessage;
+    if (msg == null) return;
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showDialog(
+        context: navigatorKey.currentContext!,
+        barrierDismissible: false,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.red[50],
+          title: const Row(children: [
+            Icon(Icons.notifications_active, color: Colors.red, size: 32),
+            SizedBox(width: 8),
+            Flexible(
+              child: Text('STATION ALERT',
+                  style: TextStyle(color: Colors.red)),
+            ),
+          ]),
+          content: Text(msg,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          actions: [
+            ElevatedButton(
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () {
+                alertProv.clearTriggerMessage();
+                Navigator.pop(navigatorKey.currentContext!);
+              },
+              child: const Text("OK, I'm Awake!",
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    context.read<StationAlertProvider>().removeListener(_onAlertTriggered);
+    super.dispose();
+  }
+
   Future<void> _initializeApp() async {
     // Initialize notification channel
     await NotificationService().init();
@@ -79,6 +138,7 @@ class _AppContentState extends State<_AppContent> {
     }
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Train Assist',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(

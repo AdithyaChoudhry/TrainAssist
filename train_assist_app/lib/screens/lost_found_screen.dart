@@ -129,20 +129,24 @@ class _LostFoundScreenState extends State<LostFoundScreen>
               const Text('Reporting: ',
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('I Lost Something'),
-                selected: _itemStatus == LostFoundStatus.lost,
-                selectedColor: Colors.red[100],
-                onSelected: (_) =>
-                    setState(() => _itemStatus = LostFoundStatus.lost),
+              Flexible(
+                child: ChoiceChip(
+                  label: const Text('I Lost Something'),
+                  selected: _itemStatus == LostFoundStatus.lost,
+                  selectedColor: Colors.red[100],
+                  onSelected: (_) =>
+                      setState(() => _itemStatus = LostFoundStatus.lost),
+                ),
               ),
               const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('I Found Something'),
-                selected: _itemStatus == LostFoundStatus.found,
-                selectedColor: Colors.green[100],
-                onSelected: (_) =>
-                    setState(() => _itemStatus = LostFoundStatus.found),
+              Flexible(
+                child: ChoiceChip(
+                  label: const Text('I Found Something'),
+                  selected: _itemStatus == LostFoundStatus.found,
+                  selectedColor: Colors.green[100],
+                  onSelected: (_) =>
+                      setState(() => _itemStatus = LostFoundStatus.found),
+                ),
               ),
             ],
           ),
@@ -151,6 +155,7 @@ class _LostFoundScreenState extends State<LostFoundScreen>
           const Text('Train', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.train),
@@ -161,8 +166,9 @@ class _LostFoundScreenState extends State<LostFoundScreen>
                 .map((t) => DropdownMenuItem<String>(
                       value: t.trainName as String,
                       child: Text(
-                          '${t.trainName} (${t.source} → ${t.destination})',
-                          overflow: TextOverflow.ellipsis),
+                          '${t.trainName} (${t.source}→${t.destination})',
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1),
                     ))
                 .toList(),
             onChanged: (v) => setState(() => _selTrainName = v),

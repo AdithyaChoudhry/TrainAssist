@@ -87,39 +87,6 @@ class _StationAlertScreenState extends State<StationAlertScreen> {
     final provider = context.watch<StationAlertProvider>();
     final trains = _local.searchTrains();
 
-    // Show trigger dialog if alert fires
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (provider.triggerMessage != null) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => AlertDialog(
-            backgroundColor: Colors.red[50],
-            title: const Row(children: [
-              Icon(Icons.notifications_active, color: Colors.red, size: 32),
-              SizedBox(width: 8),
-              Text('STATION ALERT', style: TextStyle(color: Colors.red)),
-            ]),
-            content: Text(
-              provider.triggerMessage!,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                onPressed: () {
-                  provider.clearTriggerMessage();
-                  Navigator.pop(context);
-                },
-                child: const Text('OK, I\'m Awake!',
-                    style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        );
-      }
-    });
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Station Alert'),
@@ -157,6 +124,7 @@ class _StationAlertScreenState extends State<StationAlertScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
+              isExpanded: true,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.train),
@@ -166,8 +134,9 @@ class _StationAlertScreenState extends State<StationAlertScreen> {
               items: trains
                   .map((t) => DropdownMenuItem(
                         value: t.id,
-                        child: Text('${t.trainName} (${t.source} → ${t.destination})',
-                            overflow: TextOverflow.ellipsis),
+                        child: Text('${t.trainName} (${t.source}→${t.destination})',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1),
                       ))
                   .toList(),
               onChanged: (v) {
@@ -288,12 +257,13 @@ class _StationAlertScreenState extends State<StationAlertScreen> {
                       child: const Icon(Icons.alarm, color: Colors.white),
                     ),
                     title: Text(alert.destinationStation,
+                        overflow: TextOverflow.ellipsis,
                         style:
                             const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(alert.trainName),
+                        Text(alert.trainName, overflow: TextOverflow.ellipsis),
                         Text(alert.statusLabel,
                             style: TextStyle(
                                 color: _alertColor(alert),

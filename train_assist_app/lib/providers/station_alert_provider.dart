@@ -4,13 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/station_alert_model.dart';
+import '../services/notification_service.dart';
 
 class StationAlertProvider extends ChangeNotifier {
   static const _key = 'station_alerts';
 
   List<StationAlert> _alerts = [];
   Timer? _ticker;
-  String? _triggerMessage; // non-null when an alert fires
+  String? _triggerMessage;
 
   List<StationAlert> get alerts =>
       _alerts.where((a) => !a.isExpired).toList();
@@ -18,8 +19,8 @@ class StationAlertProvider extends ChangeNotifier {
 
   StationAlertProvider() {
     _load();
-    // Poll every 30 seconds to check alert thresholds
-    _ticker = Timer.periodic(const Duration(seconds: 30), (_) => _check());
+    // Check every 10 seconds for more responsive alerts
+    _ticker = Timer.periodic(const Duration(seconds: 10), (_) => _check());
   }
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ class StationAlertProvider extends ChangeNotifier {
   // ── Countdown logic ────────────────────────────────────────────────────────
 
   void _check() {
+    bool changed = false;
     for (final alert in _alerts) {
       if (alert.isTriggered || alert.isExpired) continue;
       final mins = alert.timeRemaining.inMinutes;
@@ -51,27 +53,41 @@ class StationAlertProvider extends ChangeNotifier {
       if (mins <= 5) {
         alert.isTriggered = true;
         _triggerMessage =
-            '🚨 WAKE UP! "${alert.destinationStation}" is arriving in ~${mins} min!\n'
-            '${alert.elderlyMode ? "⚠️ Elderly Alert active — prepare to deboard!" : ""}';
-        // Strong haptic
+            '🚨 WAKE UP! "${alert.destinationStation}" arriving in ~$mins min!\n'
+            '${alert.elderlyMode ? "⚠️ Elderly Alert — prepare to deboard!" : "Get off at the next stop!"}';
         HapticFeedback.vibrate();
         HapticFeedback.heavyImpact();
+        // Fire loud notification — works even when phone is locked
+        NotificationService().showStationAlert(
+          '🚨 Your stop is almost here!',
+          '"${alert.destinationStation}" arriving in ~$mins minute${mins == 1 ? "" : "s"}! '
+          '${alert.elderlyMode ? "⚠️ Elderly mode — please prepare now!" : "Get ready to deboard!"}',
+        );
+        changed = true;
         _save();
-        notifyListeners();
       } else if (mins <= 15) {
         _triggerMessage =
-            '⏰ "${alert.destinationStation}" arriving in ~${mins} minutes. Get ready!';
+            '⏰ "${alert.destinationStation}" arriving in ~$mins minutes. Get ready!';
         HapticFeedback.mediumImpact();
-        notifyListeners();
+        NotificationService().showStationAlert(
+          '⏰ Approaching ${alert.destinationStation}',
+          '~$mins minutes away. Start packing your belongings.',
+        );
+        changed = true;
       } else if (mins <= 30) {
         _triggerMessage =
-            '🔔 "${alert.destinationStation}" is ~${mins} minutes away.';
+            '🔔 "${alert.destinationStation}" is ~$mins minutes away.';
         HapticFeedback.lightImpact();
-        notifyListeners();
+        NotificationService().showStationAlert(
+          '🔔 ${alert.destinationStation} in ~$mins min',
+          'You\'re about ${mins} minutes from your stop.',
+        );
+        changed = true;
       }
     }
     // Clean expired
     _alerts.removeWhere((a) => a.isExpired && a.isTriggered);
+    if (changed) notifyListeners();
   }
 
   // ── Persistence ───────────────────────────────────────────────────────────
