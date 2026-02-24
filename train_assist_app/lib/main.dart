@@ -15,6 +15,7 @@ import 'screens/sos_screen.dart';
 import 'screens/station_alert_screen.dart';
 import 'screens/lost_found_screen.dart';
 import 'screens/medical_profile_screen.dart';
+import 'services/notification_service.dart';
 
 void main() {
   runApp(const TrainAssistApp());
@@ -58,6 +59,8 @@ class _AppContentState extends State<_AppContent> {
   }
 
   Future<void> _initializeApp() async {
+    // Initialize notification channel
+    await NotificationService().init();
     // Load saved user name
     await Provider.of<UserProvider>(context, listen: false).loadUserName();
     setState(() => _isInitialized = true);

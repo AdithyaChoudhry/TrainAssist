@@ -31,31 +31,52 @@ class LocalDataService {
     Train(id: 20, trainName: 'Punjab Mail',            source: 'Mumbai',     destination: 'Firozpur',          timing: '19:05', platform: '3'),
   ];
 
+  // ── 25 coach slots with realistic crowd patterns per time-of-day ──────────
+  // Each entry: (displayName, [morning/night, day, evening-rush])
+  static const List<(String, List<String>)> _coachSlots = [
+    ('GS-1 - General',      ['High',   'High',   'High'  ]),
+    ('GS-2 - General',      ['High',   'High',   'High'  ]),
+    ('GS-3 - General',      ['High',   'Medium', 'High'  ]),
+    ('S1 - Sleeper',        ['High',   'Medium', 'High'  ]),
+    ('S2 - Sleeper',        ['High',   'Medium', 'High'  ]),
+    ('S3 - Sleeper',        ['High',   'Medium', 'High'  ]),
+    ('S4 - Sleeper',        ['Medium', 'Medium', 'High'  ]),
+    ('S5 - Sleeper',        ['Medium', 'Low',    'Medium']),
+    ('S6 - Sleeper',        ['Medium', 'Low',    'High'  ]),
+    ('S7 - Sleeper',        ['Medium', 'Low',    'Medium']),
+    ('S8 - Sleeper',        ['Low',    'Low',    'Medium']),
+    ('S9 - Sleeper',        ['Low',    'Low',    'Medium']),
+    ('B1 - AC 3 Tier',      ['Medium', 'Low',    'Medium']),
+    ('B2 - AC 3 Tier',      ['Medium', 'Low',    'Medium']),
+    ('B3 - AC 3 Tier',      ['Low',    'Low',    'Medium']),
+    ('B4 - AC 3 Tier',      ['Low',    'Low',    'Low'   ]),
+    ('B5 - AC 3 Tier',      ['Medium', 'Medium', 'High'  ]),
+    ('B6 - AC 3 Tier',      ['Low',    'Low',    'Medium']),
+    ('A1 - AC 2 Tier',      ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',      ['Low',    'Low',    'Low'   ]),
+    ('A3 - AC 2 Tier',      ['Low',    'Low',    'Medium']),
+    ('H1 - First AC',       ['Low',    'Low',    'Low'   ]),
+    ('H2 - First AC',       ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',    ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',    ['Low',    'Low',    'Low'   ]),
+  ];  // 25 slots total
+
   // ── Hardcoded coaches per train ───────────────────────────────────────────
-  // Each coach gets a deterministic but VARIED crowd level so the UI shows
-  // realistic differences. The seed is (trainId * coachSlot + hour-bucket)
-  // so the levels shift slightly across morning / afternoon / evening — making
-  // it look live without a server.
   static Map<int, List<Coach>> _buildCoaches() {
     final hour = DateTime.now().hour;
-    // Three time buckets: 0=night/morning, 1=day, 2=evening rush
     final bucket = hour < 9 ? 0 : (hour < 17 ? 1 : 2);
 
-    // Crowd pattern per (coachSlot, bucket) — mimics real Indian Railways:
-    //   Sleeper is always busier; AC 2-Tier is least crowded.
-    const patterns = <int, List<String>>{
-      0: ['High',   'Medium', 'High'],   // S1 Sleeper: busy all day
-      1: ['Medium', 'Low',    'Medium'], // B1 AC 3 Tier: moderate
-      2: ['Low',    'Low',    'Medium'], // A1 AC 2 Tier: least crowded
-    };
-
     final result = <int, List<Coach>>{};
-    for (int i = 1; i <= 20; i++) {
-      result[i] = [
-        Coach(id: (i - 1) * 3 + 1, trainId: i, coachName: 'S1 - Sleeper',   latestStatus: patterns[0]![bucket]),
-        Coach(id: (i - 1) * 3 + 2, trainId: i, coachName: 'B1 - AC 3 Tier', latestStatus: patterns[1]![bucket]),
-        Coach(id: (i - 1) * 3 + 3, trainId: i, coachName: 'A1 - AC 2 Tier', latestStatus: patterns[2]![bucket]),
-      ];
+    for (int trainId = 1; trainId <= 20; trainId++) {
+      result[trainId] = List.generate(_coachSlots.length, (slot) {
+        final (name, patterns) = _coachSlots[slot];
+        return Coach(
+          id: (trainId - 1) * 25 + slot + 1,
+          trainId: trainId,
+          coachName: name,
+          latestStatus: patterns[bucket],
+        );
+      });
     }
     return result;
   }

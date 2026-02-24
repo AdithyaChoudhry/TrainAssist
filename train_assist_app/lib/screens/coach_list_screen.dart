@@ -317,7 +317,7 @@ class _CoachCard extends StatelessWidget {
     // BT result takes precedence over stored server status if it's fresher.
     final displayLevel = hasBt ? btResult!.crowdLevel : (coach.latestStatus ?? 'Unknown');
     final displayColor = _crowdColor(displayLevel);
-    final displayColorLight = displayColor.withOpacity(0.12);
+    final displayColorLight = displayColor.withValues(alpha: 0.12);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -329,15 +329,18 @@ class _CoachCard extends StatelessWidget {
             // ── Row 1: name + status chip ───────────────────────────────────
             Row(
               children: [
-                Text(
-                  coach.coachName,
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
+                Flexible(
+                  child: Text(
+                    coach.coachName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
+                      horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: displayColorLight,
                     borderRadius: BorderRadius.circular(16),
@@ -347,13 +350,13 @@ class _CoachCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.circle, size: 10, color: displayColor),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 5),
                       Text(
                         displayLevel,
                         style: TextStyle(
                           color: displayColor,
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 13,
                         ),
                       ),
                     ],
@@ -455,33 +458,38 @@ class _CoachCard extends StatelessWidget {
             // ── Cleanliness rating ───────────────────────────────────────────
             Row(
               children: [
-                Icon(Icons.cleaning_services, size: 16, color: Colors.brown[400]),
-                const SizedBox(width: 6),
-                Text('Cleanliness:',
+                Icon(Icons.cleaning_services, size: 15, color: Colors.brown[400]),
+                const SizedBox(width: 5),
+                Text('Clean:',
                     style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                const SizedBox(width: 8),
-                ...List.generate(5, (i) {
-                  final star = i + 1;
-                  return GestureDetector(
-                    onTap: () => onCleanlinessChanged(star),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Icon(
-                        star <= cleanlinessScore
-                            ? Icons.star
-                            : Icons.star_border,
-                        color: star <= cleanlinessScore
-                            ? Colors.amber
-                            : Colors.grey[400],
-                        size: 22,
-                      ),
-                    ),
-                  );
-                }),
                 const SizedBox(width: 6),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(5, (i) {
+                      final star = i + 1;
+                      return GestureDetector(
+                        onTap: () => onCleanlinessChanged(star),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 1),
+                          child: Icon(
+                            star <= cleanlinessScore
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: star <= cleanlinessScore
+                                ? Colors.amber
+                                : Colors.grey[400],
+                            size: 20,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 5),
                 Text('$cleanlinessScore/5',
                     style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: Colors.grey[600],
                         fontWeight: FontWeight.bold)),
               ],
@@ -550,61 +558,59 @@ class _TrainHeatmap extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          // Coach blocks
-          Row(
-            children: [
-              // Engine icon
-              Container(
-                width: 30,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey[700],
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    bottomLeft: Radius.circular(12),
+          // Coach blocks — horizontally scrollable for 25+ coaches
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                // Engine icon
+                Container(
+                  width: 30,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey[700],
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      bottomLeft: Radius.circular(12),
+                    ),
                   ),
+                  child: const Icon(Icons.directions_railway,
+                      color: Colors.white, size: 18),
                 ),
-                child: const Icon(Icons.directions_railway,
-                    color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 3),
-              Expanded(
-                child: Row(
-                  children: coaches.map((coach) {
-                    final color = _levelColor(coach.latestStatus);
-                    final short = coach.coachName.split(' - ').first;
-                    return Expanded(
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.18),
-                          border: Border.all(color: color, width: 1.5),
-                          borderRadius: BorderRadius.circular(4),
+                const SizedBox(width: 3),
+                ...coaches.map((coach) {
+                  final color = _levelColor(coach.latestStatus);
+                  final short = coach.coachName.split(' - ').first;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                    width: 42,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.18),
+                      border: Border.all(color: color, width: 1.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(short,
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: color)),
+                        const SizedBox(height: 2),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                              color: color, shape: BoxShape.circle),
                         ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(short,
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: color)),
-                            const SizedBox(height: 2),
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                  color: color, shape: BoxShape.circle),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           // Legend
@@ -665,9 +671,9 @@ class _BestCoachBanner extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -694,7 +700,7 @@ class _BestCoachBanner extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: color),
             ),
@@ -802,7 +808,7 @@ class _CrowdLevelButton extends StatelessWidget {
         padding:
             const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+          color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
           border: Border.all(
             color: isSelected ? color : Colors.grey[300]!,
             width: isSelected ? 2 : 1,
