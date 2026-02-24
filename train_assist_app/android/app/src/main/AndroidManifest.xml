@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- Required for heads-up / wake-screen alerts on locked device -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- Keeps CPU alive so timer-based alerts fire even with screen off -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <application
         android:label="train_assist_app"
         android:name="${applicationName}"

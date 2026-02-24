@@ -19,9 +19,9 @@ class NotificationService {
   static const String _medChannelDesc =
       'Shows your medical details on the lock screen for first responders';
 
-  // Station alert: audible + vibration, high importance
-  // _v2 suffix forces Android to create a fresh channel with correct settings
-  static const String _alertChannelId   = 'station_alert_v2';
+  // Station alert: MAX importance so Android forces sound+vibration even on locked screen
+  // _v3 forces fresh channel recreation (old cached channels ignore new settings)
+  static const String _alertChannelId   = 'station_alert_v3';
   static const String _alertChannelName = 'Station Arrival Alert';
   static const String _alertChannelDesc =
       'Plays sound and vibrates when your destination is approaching';
@@ -55,15 +55,19 @@ class NotificationService {
       enableVibration: false,
     ));
 
-    // Station alert channel — audible + vibration + LED
+    // Station alert channel — MAX importance, 10-pulse vibration, LED
     await androidImpl?.createNotificationChannel(AndroidNotificationChannel(
       _alertChannelId,
       _alertChannelName,
       description: _alertChannelDesc,
-      importance: Importance.high,
+      importance: Importance.max,          // max = guaranteed heads-up + sound
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 600, 200, 600, 200, 600]),
+      // 10 pulses: [delay, buzz, pause, buzz, ...] — feels continuous
+      vibrationPattern: Int64List.fromList([
+        0, 900, 200, 900, 200, 900, 200, 900, 200, 900,
+        200, 900, 200, 900, 200, 900, 200, 900, 200, 900,
+      ]),
       enableLights: true,
       ledColor: const Color(0xFF3949AB),
     ));
@@ -80,17 +84,20 @@ class NotificationService {
       _alertChannelId,
       _alertChannelName,
       channelDescription: _alertChannelDesc,
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,          // must match channel
+      priority: Priority.max,
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 600, 200, 600, 200, 600]),
+      vibrationPattern: Int64List.fromList([
+        0, 900, 200, 900, 200, 900, 200, 900, 200, 900,
+        200, 900, 200, 900, 200, 900, 200, 900, 200, 900,
+      ]),
       enableLights: true,
       ledColor: const Color(0xFF3949AB),
       ledOnMs: 1000,
       ledOffMs: 500,
       visibility: NotificationVisibility.public,
-      fullScreenIntent: true,   // wake screen on lock
+      fullScreenIntent: true,   // wakes locked screen
       ongoing: false,
       autoCancel: true,
       ticker: 'TrainAssist Station Alert',
