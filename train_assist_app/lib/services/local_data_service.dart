@@ -62,6 +62,9 @@ class LocalDataService {
 
   static final Map<int, List<Coach>> _coachesByTrain = _buildCoaches();
 
+  /// Cleanliness scores: coachId → 1-5 (default 3).
+  static final Map<int, int> _cleanliness = {};
+
   // ── Public API ────────────────────────────────────────────────────────────
 
   /// Return all trains, optionally filtered by source and/or destination.
@@ -105,5 +108,13 @@ class LocalDataService {
         }
       }
     });
+  }
+
+  /// Get cleanliness score (1-5) for a coach. Defaults to 3.
+  int getCleanlinessScore(int coachId) => _cleanliness[coachId] ?? 3;
+
+  /// Update cleanliness score in memory (1-5).
+  void updateCleanliness(int coachId, int score) {
+    _cleanliness[coachId] = score.clamp(1, 5);
   }
 }

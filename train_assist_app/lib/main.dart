@@ -5,10 +5,16 @@ import 'providers/train_provider.dart';
 import 'providers/coach_provider.dart';
 import 'providers/sos_provider.dart';
 import 'providers/bluetooth_provider.dart';
+import 'providers/station_alert_provider.dart';
+import 'providers/lost_found_provider.dart';
+import 'providers/medical_profile_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/sos_screen.dart';
+import 'screens/station_alert_screen.dart';
+import 'screens/lost_found_screen.dart';
+import 'screens/medical_profile_screen.dart';
 
 void main() {
   runApp(const TrainAssistApp());
@@ -26,6 +32,9 @@ class TrainAssistApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CoachProvider()),
         ChangeNotifierProvider(create: (_) => SOSProvider()),
         ChangeNotifierProvider(create: (_) => BluetoothProvider()),
+        ChangeNotifierProvider(create: (_) => StationAlertProvider()),
+        ChangeNotifierProvider(create: (_) => LostFoundProvider()),
+        ChangeNotifierProvider(create: (_) => MedicalProfileProvider()),
       ],
       child: const _AppContent(),
     );
@@ -135,6 +144,9 @@ class _AppContentState extends State<_AppContent> {
         '/register': (context) => const RegisterScreen(),
         '/search': (context) => const SearchScreen(),
         '/sos': (context) => const SOSScreen(),
+        '/station-alert': (context) => const StationAlertScreen(),
+        '/lost-found': (context) => const LostFoundScreen(),
+        '/medical-profile': (context) => const MedicalProfileScreen(),
       },
     );
   }

@@ -7,6 +7,7 @@ import '../providers/coach_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/bluetooth_provider.dart';
 import '../services/bluetooth_service.dart';
+import '../services/local_data_service.dart';
 
 /// Screen displaying coaches for a specific train with crowd status.
 /// Bluetooth scan runs automatically in the background — no BT icon shown.
@@ -267,6 +268,11 @@ class _CoachListScreenState extends State<CoachListScreen> {
                                 await _runScanForCoach(coach);
                               },
                               formatTimestamp: _formatTimestamp,
+                              cleanlinessScore: LocalDataService().getCleanlinessScore(coach.id),
+                              onCleanlinessChanged: (score) {
+                                LocalDataService().updateCleanliness(coach.id, score);
+                                setState(() {});
+                              },
                             )),
                           ],
                         ),
@@ -289,6 +295,8 @@ class _CoachCard extends StatelessWidget {
   final VoidCallback onUpdatePressed;
   final VoidCallback onScanMyCoachPressed;
   final String Function(DateTime?) formatTimestamp;
+  final int cleanlinessScore;
+  final void Function(int) onCleanlinessChanged;
 
   const _CoachCard({
     required this.coach,
@@ -297,6 +305,8 @@ class _CoachCard extends StatelessWidget {
     required this.onUpdatePressed,
     required this.onScanMyCoachPressed,
     required this.formatTimestamp,
+    required this.cleanlinessScore,
+    required this.onCleanlinessChanged,
   });
 
   @override
@@ -435,6 +445,45 @@ class _CoachCard extends StatelessWidget {
                     label: const Text('Report'),
                   ),
                 ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // ── Cleanliness rating ───────────────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.cleaning_services, size: 16, color: Colors.brown[400]),
+                const SizedBox(width: 6),
+                Text('Cleanliness:',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                const SizedBox(width: 8),
+                ...List.generate(5, (i) {
+                  final star = i + 1;
+                  return GestureDetector(
+                    onTap: () => onCleanlinessChanged(star),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Icon(
+                        star <= cleanlinessScore
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: star <= cleanlinessScore
+                            ? Colors.amber
+                            : Colors.grey[400],
+                        size: 22,
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(width: 6),
+                Text('$cleanlinessScore/5',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold)),
               ],
             ),
           ],

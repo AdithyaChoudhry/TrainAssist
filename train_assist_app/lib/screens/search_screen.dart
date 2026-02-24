@@ -5,6 +5,9 @@ import '../providers/user_provider.dart';
 import '../models/train_model.dart';
 import 'coach_list_screen.dart';
 import 'sos_screen.dart';
+import 'station_alert_screen.dart';
+import 'lost_found_screen.dart';
+import 'medical_profile_screen.dart';
 
 /// Main search screen for finding trains
 class SearchScreen extends StatefulWidget {
@@ -200,6 +203,45 @@ class _SearchScreenState extends State<SearchScreen> {
                   MaterialPageRoute(
                     builder: (context) => const RecentSOSReportsScreen(),
                   ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.alarm, color: Colors.indigo),
+              title: const Text('Station Alert'),
+              subtitle: const Text('Never miss your stop'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const StationAlertScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.find_in_page, color: Colors.teal),
+              title: const Text('Lost & Found'),
+              subtitle: const Text('Report or find lost items'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LostFoundScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.medical_services, color: Colors.red),
+              title: const Text('Medical Profile'),
+              subtitle: const Text('Emergency health card'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const MedicalProfileScreen()),
                 );
               },
             ),
