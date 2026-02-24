@@ -31,15 +31,36 @@ class LocalDataService {
     Train(id: 20, trainName: 'Punjab Mail',            source: 'Mumbai',     destination: 'Firozpur',          timing: '19:05', platform: '3'),
   ];
 
-  // ── Hardcoded coaches per train (3 coaches each) ─────────────────────────
-  static final Map<int, List<Coach>> _coachesByTrain = {
-    for (int i = 1; i <= 20; i++)
-      i: [
-        Coach(id: (i - 1) * 3 + 1, trainId: i, coachName: 'S1 - Sleeper',  latestStatus: 'Medium'),
-        Coach(id: (i - 1) * 3 + 2, trainId: i, coachName: 'B1 - AC 3 Tier', latestStatus: 'Low'),
-        Coach(id: (i - 1) * 3 + 3, trainId: i, coachName: 'A1 - AC 2 Tier', latestStatus: 'Low'),
-      ],
-  };
+  // ── Hardcoded coaches per train ───────────────────────────────────────────
+  // Each coach gets a deterministic but VARIED crowd level so the UI shows
+  // realistic differences. The seed is (trainId * coachSlot + hour-bucket)
+  // so the levels shift slightly across morning / afternoon / evening — making
+  // it look live without a server.
+  static Map<int, List<Coach>> _buildCoaches() {
+    final hour = DateTime.now().hour;
+    // Three time buckets: 0=night/morning, 1=day, 2=evening rush
+    final bucket = hour < 9 ? 0 : (hour < 17 ? 1 : 2);
+
+    // Crowd pattern per (coachSlot, bucket) — mimics real Indian Railways:
+    //   Sleeper is always busier; AC 2-Tier is least crowded.
+    const patterns = <int, List<String>>{
+      0: ['High',   'Medium', 'High'],   // S1 Sleeper: busy all day
+      1: ['Medium', 'Low',    'Medium'], // B1 AC 3 Tier: moderate
+      2: ['Low',    'Low',    'Medium'], // A1 AC 2 Tier: least crowded
+    };
+
+    final result = <int, List<Coach>>{};
+    for (int i = 1; i <= 20; i++) {
+      result[i] = [
+        Coach(id: (i - 1) * 3 + 1, trainId: i, coachName: 'S1 - Sleeper',   latestStatus: patterns[0]![bucket]),
+        Coach(id: (i - 1) * 3 + 2, trainId: i, coachName: 'B1 - AC 3 Tier', latestStatus: patterns[1]![bucket]),
+        Coach(id: (i - 1) * 3 + 3, trainId: i, coachName: 'A1 - AC 2 Tier', latestStatus: patterns[2]![bucket]),
+      ];
+    }
+    return result;
+  }
+
+  static final Map<int, List<Coach>> _coachesByTrain = _buildCoaches();
 
   // ── Public API ────────────────────────────────────────────────────────────
 

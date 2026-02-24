@@ -20,47 +20,43 @@ class CoachListScreen extends StatefulWidget {
 }
 
 class _CoachListScreenState extends State<CoachListScreen> {
-  /// Per-coach BT scan results, keyed by coach.id
+  /// Per-coach BT scan results, keyed by coach.id.
+  /// Only populated when user explicitly taps "Scan MY Coach" on a specific coach.
   final Map<int, BluetoothScanResult> _btResults = {};
+  final Map<int, bool> _scanningCoach = {};
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final coachProvider = Provider.of<CoachProvider>(context, listen: false);
-      coachProvider.loadCoaches(widget.train.id).then((_) {
-        // Auto-scan all coaches silently after they load
-        _autoScanAll(coachProvider.coaches);
-      });
+      Provider.of<CoachProvider>(context, listen: false)
+          .loadCoaches(widget.train.id);
     });
   }
 
-  /// Runs a BT scan for each coach silently in the background.
-  Future<void> _autoScanAll(List<Coach> coaches) async {
-    for (final coach in coaches) {
-      if (!mounted) return;
-      await _runScanForCoach(coach);
-    }
-  }
-
-  /// Runs a single scan and stores result for [coach].
+  /// Runs a BT scan for ONE specific coach (the one the user says they're in).
+  /// BLE scans physical surroundings — it's only meaningful for the coach
+  /// you are currently standing inside.
   Future<void> _runScanForCoach(Coach coach) async {
+    if (_scanningCoach[coach.id] == true) return;
+    setState(() => _scanningCoach[coach.id] = true);
     final service = BluetoothCrowdService();
     try {
       final result = await service.scanForCrowd();
       if (mounted) {
-        setState(() => _btResults[coach.id] = result);
+        setState(() {
+          _btResults[coach.id] = result;
+          _scanningCoach[coach.id] = false;
+        });
       }
     } catch (_) {
-      // Silently ignore — UI falls back to last reported status
+      if (mounted) setState(() => _scanningCoach[coach.id] = false);
     }
   }
 
   Future<void> _handleRefresh() async {
     final coachProvider = Provider.of<CoachProvider>(context, listen: false);
     await coachProvider.loadCoaches(widget.train.id);
-    // Re-scan after refresh
-    _autoScanAll(coachProvider.coaches);
   }
 
   void _showCrowdReportDialog(Coach coach) {
@@ -254,28 +250,25 @@ class _CoachListScreenState extends State<CoachListScreen> {
                   : coachProvider.coaches.isEmpty
                       ? const Center(
                           child: Text('No coaches found for this train'))
-                      : ListView.builder(
-                          itemCount: coachProvider.coaches.length,
-                          itemBuilder: (context, index) {
-                            final coach = coachProvider.coaches[index];
-                            return _CoachCard(
+                      : ListView(
+                          children: [
+                            // ── Train heatmap ───────────────────────────────
+                            _TrainHeatmap(coaches: coachProvider.coaches),
+                            // ── Best coach banner ───────────────────────────
+                            _BestCoachBanner(coaches: coachProvider.coaches),
+                            // ── Individual coach cards ──────────────────────
+                            ...coachProvider.coaches.map((coach) => _CoachCard(
                               coach: coach,
                               btResult: _btResults[coach.id],
+                              isScanning: _scanningCoach[coach.id] == true,
                               onUpdatePressed: () =>
                                   _showCrowdReportDialog(coach),
-                              onRescanPressed: () async {
-                                // Rescan just this coach
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Re-scanning…'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
+                              onScanMyCoachPressed: () async {
                                 await _runScanForCoach(coach);
                               },
                               formatTimestamp: _formatTimestamp,
-                            );
-                          },
+                            )),
+                          ],
                         ),
             ),
           ],
@@ -292,15 +285,17 @@ class _CoachListScreenState extends State<CoachListScreen> {
 class _CoachCard extends StatelessWidget {
   final Coach coach;
   final BluetoothScanResult? btResult;
+  final bool isScanning;
   final VoidCallback onUpdatePressed;
-  final VoidCallback onRescanPressed;
+  final VoidCallback onScanMyCoachPressed;
   final String Function(DateTime?) formatTimestamp;
 
   const _CoachCard({
     required this.coach,
     required this.btResult,
+    required this.isScanning,
     required this.onUpdatePressed,
-    required this.onRescanPressed,
+    required this.onScanMyCoachPressed,
     required this.formatTimestamp,
   });
 
@@ -355,19 +350,29 @@ class _CoachCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // Tiny re-scan icon (no label — invisible to casual users)
-                Tooltip(
-                  message: 'Re-scan nearby devices',
-                  child: InkWell(
-                    onTap: onRescanPressed,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(Icons.refresh,
-                          size: 18, color: Colors.grey[400]),
+                // "I'm in this coach" scan button
+                if (isScanning)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Tooltip(
+                    message: "I'm in this coach — scan crowd",
+                    child: InkWell(
+                      onTap: onScanMyCoachPressed,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(Icons.sensors,
+                            size: 22,
+                            color: btResult != null
+                                ? Colors.blue[600]
+                                : Colors.grey[400]),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
 
@@ -407,14 +412,30 @@ class _CoachCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // ── Manual update button only ────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: onUpdatePressed,
-                icon: const Icon(Icons.edit, size: 18),
-                label: const Text('Report Crowd Status'),
-              ),
+            // ── Action buttons ───────────────────────────────────────────────
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isScanning ? null : onScanMyCoachPressed,
+                    icon: Icon(isScanning ? Icons.hourglass_top : Icons.sensors,
+                        size: 16),
+                    label: Text(isScanning ? 'Scanning…' : "Scan MY Coach"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue[700],
+                      side: BorderSide(color: Colors.blue[300]!),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onUpdatePressed,
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Report'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -433,6 +454,212 @@ class _CoachCard extends StatelessWidget {
       default:
         return Colors.grey;
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Train heatmap — horizontal visual of all coaches colour-coded by crowd level
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TrainHeatmap extends StatelessWidget {
+  final List<Coach> coaches;
+  const _TrainHeatmap({required this.coaches});
+
+  Color _levelColor(String? level) {
+    switch (level) {
+      case 'Low':    return Colors.green;
+      case 'Medium': return Colors.orange;
+      case 'High':   return Colors.red;
+      default:       return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.train, size: 16, color: Colors.grey[600]),
+              const SizedBox(width: 6),
+              Text(
+                'Train Crowd Heatmap',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700]),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Coach blocks
+          Row(
+            children: [
+              // Engine icon
+              Container(
+                width: 30,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey[700],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                ),
+                child: const Icon(Icons.directions_railway,
+                    color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 3),
+              Expanded(
+                child: Row(
+                  children: coaches.map((coach) {
+                    final color = _levelColor(coach.latestStatus);
+                    final short = coach.coachName.split(' - ').first;
+                    return Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.18),
+                          border: Border.all(color: color, width: 1.5),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(short,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: color)),
+                            const SizedBox(height: 2),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                  color: color, shape: BoxShape.circle),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Legend
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _legendDot(Colors.green,  'Low'),
+              const SizedBox(width: 10),
+              _legendDot(Colors.orange, 'Medium'),
+              const SizedBox(width: 10),
+              _legendDot(Colors.red,    'High'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color c, String label) {
+    return Row(
+      children: [
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Best Coach Recommendation Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _BestCoachBanner extends StatelessWidget {
+  final List<Coach> coaches;
+  const _BestCoachBanner({required this.coaches});
+
+  Coach? _bestCoach() {
+    const priority = {'Low': 0, 'Medium': 1, 'High': 2};
+    final sorted = List<Coach>.from(coaches)
+      ..sort((a, b) => (priority[a.latestStatus] ?? 3)
+          .compareTo(priority[b.latestStatus] ?? 3));
+    return sorted.isNotEmpty ? sorted.first : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final best = _bestCoach();
+    if (best == null) return const SizedBox.shrink();
+
+    final isLow = best.latestStatus == 'Low';
+    final color = isLow ? Colors.green : Colors.orange;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.recommend, color: color, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Best coach to board',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: color,
+                        fontWeight: FontWeight.w600)),
+                Text(
+                  best.coachName,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color),
+            ),
+            child: Text(
+              best.latestStatus ?? 'Unknown',
+              style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
