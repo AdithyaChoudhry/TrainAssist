@@ -55,13 +55,19 @@ class StationAlertProvider extends ChangeNotifier {
         _triggerMessage =
             '🚨 WAKE UP! "${alert.destinationStation}" arriving in ~$mins min!\n'
             '${alert.elderlyMode ? "⚠️ Elderly Alert — prepare to deboard!" : "Get off at the next stop!"}';
-        // Repeat haptic 10x × 500ms — continuous buzz while app is in foreground
-        int _hapticCount = 0;
-        Timer.periodic(const Duration(milliseconds: 500), (t) {
-          HapticFeedback.heavyImpact();
-          if (++_hapticCount >= 10) t.cancel();
+        // Fire the alarm 3 × with 5-second gaps so the beep repeats
+        // (each showStationAlert re-triggers sound + vibration on the device)
+        int _repeat = 0;
+        Timer.periodic(const Duration(seconds: 5), (t) {
+          NotificationService().showStationAlert(
+            '🚨 Your stop is almost here!',
+            '"${alert.destinationStation}" arriving in ~$mins minute${mins == 1 ? "" : "s"}! '
+            '${alert.elderlyMode ? "⚠️ Elderly mode — please prepare now!" : "Get ready to deboard!"}',
+          );
+          if (++_repeat >= 3) t.cancel();
         });
-        // Fire loud notification — works even when phone is locked
+        // Also fire once immediately
+        HapticFeedback.heavyImpact();
         NotificationService().showStationAlert(
           '🚨 Your stop is almost here!',
           '"${alert.destinationStation}" arriving in ~$mins minute${mins == 1 ? "" : "s"}! '

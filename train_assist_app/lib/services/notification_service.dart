@@ -19,12 +19,16 @@ class NotificationService {
   static const String _medChannelDesc =
       'Shows your medical details on the lock screen for first responders';
 
-  // Station alert: MAX importance so Android forces sound+vibration even on locked screen
-  // _v3 forces fresh channel recreation (old cached channels ignore new settings)
-  static const String _alertChannelId   = 'station_alert_v3';
+  // Station alert: bundled custom sound, MAX importance
+  // _v4 forces a fresh channel with our custom beep WAV
+  static const String _alertChannelId   = 'station_alert_v4';
   static const String _alertChannelName = 'Station Arrival Alert';
   static const String _alertChannelDesc =
-      'Plays sound and vibrates when your destination is approaching';
+      'Beeps and vibrates when your destination is approaching';
+
+  // Bundled 6-beep WAV in android/app/src/main/res/raw/station_beep.wav
+  static const _beepSound =
+      RawResourceAndroidNotificationSound('station_beep');
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -55,19 +59,17 @@ class NotificationService {
       enableVibration: false,
     ));
 
-    // Station alert channel — MAX importance, 10-pulse vibration, LED
+    // Station alert channel — bundled beep sound, MAX importance, 3-pulse vibration
     await androidImpl?.createNotificationChannel(AndroidNotificationChannel(
       _alertChannelId,
       _alertChannelName,
       description: _alertChannelDesc,
-      importance: Importance.max,          // max = guaranteed heads-up + sound
+      importance: Importance.max,
+      sound: _beepSound,
       playSound: true,
       enableVibration: true,
-      // 10 pulses: [delay, buzz, pause, buzz, ...] — feels continuous
-      vibrationPattern: Int64List.fromList([
-        0, 900, 200, 900, 200, 900, 200, 900, 200, 900,
-        200, 900, 200, 900, 200, 900, 200, 900, 200, 900,
-      ]),
+      // 3 strong pulses: [delay, buzz, pause, buzz, pause, buzz]
+      vibrationPattern: Int64List.fromList([0, 1500, 500, 1500, 500, 1500]),
       enableLights: true,
       ledColor: const Color(0xFF3949AB),
     ));
@@ -84,20 +86,18 @@ class NotificationService {
       _alertChannelId,
       _alertChannelName,
       channelDescription: _alertChannelDesc,
-      importance: Importance.max,          // must match channel
+      importance: Importance.max,
       priority: Priority.max,
+      sound: _beepSound,      // bundled WAV — always plays regardless of ringtone volume
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([
-        0, 900, 200, 900, 200, 900, 200, 900, 200, 900,
-        200, 900, 200, 900, 200, 900, 200, 900, 200, 900,
-      ]),
+      vibrationPattern: Int64List.fromList([0, 1500, 500, 1500, 500, 1500]),
       enableLights: true,
       ledColor: const Color(0xFF3949AB),
       ledOnMs: 1000,
       ledOffMs: 500,
       visibility: NotificationVisibility.public,
-      fullScreenIntent: true,   // wakes locked screen
+      fullScreenIntent: true,
       ongoing: false,
       autoCancel: true,
       ticker: 'TrainAssist Station Alert',
