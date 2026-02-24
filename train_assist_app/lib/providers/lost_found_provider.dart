@@ -14,7 +14,11 @@ class LostFoundProvider extends ChangeNotifier {
       _items.where((i) => i.status == LostFoundStatus.lost).toList();
 
   List<LostFoundItem> get foundItems =>
-      _items.where((i) => i.status == LostFoundStatus.found).toList();
+      _items
+          .where((i) =>
+              i.status == LostFoundStatus.found ||
+              i.status == LostFoundStatus.matched)
+          .toList();
 
   List<LostFoundItem> get matchedItems =>
       _items.where((i) => i.status == LostFoundStatus.matched).toList();
@@ -32,6 +36,13 @@ class LostFoundProvider extends ChangeNotifier {
 
   Future<void> removeItem(String id) async {
     _items.removeWhere((i) => i.id == id);
+    await _save();
+    notifyListeners();
+  }
+
+  /// Mark a lost item as found (status → found).
+  Future<void> markAsFound(String id) async {
+    _replaceStatus(id, LostFoundStatus.found);
     await _save();
     notifyListeners();
   }

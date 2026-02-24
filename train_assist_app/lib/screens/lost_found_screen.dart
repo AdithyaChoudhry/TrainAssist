@@ -255,37 +255,51 @@ class _LostFoundScreenState extends State<LostFoundScreen>
       itemBuilder: (_, i) {
         final item = items[i];
         final isMatched = item.status == LostFoundStatus.matched;
+        final isLost = item.status == LostFoundStatus.lost;
+        final statusColor = isLost ? Colors.red[700]! : Colors.green[700]!;
+
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
+          clipBehavior: Clip.hardEdge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: statusColor.withValues(alpha: 0.4), width: 1.5),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isMatched)
-                Container(
-                  width: double.infinity,
-                  color: Colors.green[50],
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.link, color: Colors.green, size: 16),
-                      const SizedBox(width: 4),
-                      Text('✅ Matched with another report!',
-                          style: TextStyle(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ],
-                  ),
+              // ── Status ribbon ─────────────────────────────────────────────
+              Container(
+                width: double.infinity,
+                color: statusColor.withValues(alpha: 0.10),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                child: Row(
+                  children: [
+                    Icon(
+                      isMatched ? Icons.link :
+                      isLost ? Icons.search : Icons.check_circle,
+                      size: 14,
+                      color: statusColor,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isMatched ? '✅ Matched!'
+                          : isLost ? '🔴 LOST — searching'
+                          : '🟢 FOUND — available',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor),
+                    ),
+                  ],
                 ),
+              ),
+
               ListTile(
                 leading: CircleAvatar(
-                  backgroundColor:
-                      item.status == LostFoundStatus.lost ? Colors.red : Colors.green,
+                  backgroundColor: statusColor,
                   child: Icon(
-                    item.status == LostFoundStatus.lost
-                        ? Icons.search
-                        : Icons.check,
+                    isLost ? Icons.search : Icons.check,
                     color: Colors.white,
                   ),
                 ),
@@ -297,9 +311,79 @@ class _LostFoundScreenState extends State<LostFoundScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('🚂 ${item.trainName} · Coach ${item.coachNumber}'),
-                    Text('Reported by ${item.reporterName} · ${_formatDate(item.reportedAt)}'),
+                    Text(
+                        'By ${item.reporterName} · ${_formatDate(item.reportedAt)}'),
                   ],
                 ),
+                // "Mark as Found" button only on lost items
+                trailing: isLost
+                    ? Tooltip(
+                        message: 'Mark as Found',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('Mark as Found?'),
+                                content: Text(
+                                    'Move "${item.description}" to the Found list?'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Cancel')),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green[700]),
+                                    child: const Text('Mark Found',
+                                        style:
+                                            TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirmed == true && context.mounted) {
+                              context
+                                  .read<LostFoundProvider>()
+                                  .markAsFound(item.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('✅ Moved to Found tab!'),
+                                    backgroundColor: Colors.green),
+                              );
+                              // Switch to Found tab
+                              _tabs.animateTo(2);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50],
+                              border: Border.all(color: Colors.green[700]!),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline,
+                                    size: 15, color: Colors.green[700]),
+                                const SizedBox(width: 4),
+                                Text('Found',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.green[700],
+                                        fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
               ),
             ],
           ),

@@ -20,7 +20,8 @@ class NotificationService {
       'Shows your medical details on the lock screen for first responders';
 
   // Station alert: audible + vibration, high importance
-  static const String _alertChannelId   = 'station_alert';
+  // _v2 suffix forces Android to create a fresh channel with correct settings
+  static const String _alertChannelId   = 'station_alert_v2';
   static const String _alertChannelName = 'Station Arrival Alert';
   static const String _alertChannelDesc =
       'Plays sound and vibrates when your destination is approaching';
@@ -41,6 +42,9 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
+    // Request POST_NOTIFICATIONS permission at runtime (Android 13 / API 33+)
+    await androidImpl?.requestNotificationsPermission();
+
     // Medical channel — silent, ongoing
     await androidImpl?.createNotificationChannel(const AndroidNotificationChannel(
       _medChannelId,
@@ -51,7 +55,7 @@ class NotificationService {
       enableVibration: false,
     ));
 
-    // Station alert channel — audible + vibration
+    // Station alert channel — audible + vibration + LED
     await androidImpl?.createNotificationChannel(AndroidNotificationChannel(
       _alertChannelId,
       _alertChannelName,
@@ -59,7 +63,9 @@ class NotificationService {
       importance: Importance.high,
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
+      vibrationPattern: Int64List.fromList([0, 600, 200, 600, 200, 600]),
+      enableLights: true,
+      ledColor: const Color(0xFF3949AB),
     ));
 
     _initialized = true;
@@ -78,10 +84,16 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
-      vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
+      vibrationPattern: Int64List.fromList([0, 600, 200, 600, 200, 600]),
+      enableLights: true,
+      ledColor: const Color(0xFF3949AB),
+      ledOnMs: 1000,
+      ledOffMs: 500,
       visibility: NotificationVisibility.public,
+      fullScreenIntent: true,   // wake screen on lock
       ongoing: false,
       autoCancel: true,
+      ticker: 'TrainAssist Station Alert',
       color: const Color(0xFF3949AB),
     );
     await _plugin.show(

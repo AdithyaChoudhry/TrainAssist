@@ -31,37 +31,161 @@ class LocalDataService {
     Train(id: 20, trainName: 'Punjab Mail',            source: 'Mumbai',     destination: 'Firozpur',          timing: '19:05', platform: '3'),
   ];
 
-  // ── 25 coach slots with realistic crowd patterns per time-of-day ──────────
-  // Each entry: (displayName, [morning/night, day, evening-rush])
-  // The 'base' level here is for a medium-popularity train.
-  // _buildCoaches applies a trainId-based offset so every train is different.
-  static const List<(String, List<String>)> _coachSlots = [
-    ('GS-1 - General',      ['High',   'High',   'High'  ]),
-    ('GS-2 - General',      ['High',   'High',   'High'  ]),
-    ('GS-3 - General',      ['High',   'Medium', 'High'  ]),
-    ('S1 - Sleeper',        ['High',   'Medium', 'High'  ]),
-    ('S2 - Sleeper',        ['High',   'Medium', 'High'  ]),
-    ('S3 - Sleeper',        ['High',   'Medium', 'High'  ]),
-    ('S4 - Sleeper',        ['Medium', 'Medium', 'High'  ]),
-    ('S5 - Sleeper',        ['Medium', 'Low',    'Medium']),
-    ('S6 - Sleeper',        ['Medium', 'Low',    'High'  ]),
-    ('S7 - Sleeper',        ['Medium', 'Low',    'Medium']),
-    ('S8 - Sleeper',        ['Low',    'Low',    'Medium']),
-    ('S9 - Sleeper',        ['Low',    'Low',    'Medium']),
-    ('B1 - AC 3 Tier',      ['Medium', 'Low',    'Medium']),
-    ('B2 - AC 3 Tier',      ['Medium', 'Low',    'Medium']),
-    ('B3 - AC 3 Tier',      ['Low',    'Low',    'Medium']),
-    ('B4 - AC 3 Tier',      ['Low',    'Low',    'Low'   ]),
-    ('B5 - AC 3 Tier',      ['Medium', 'Medium', 'High'  ]),
-    ('B6 - AC 3 Tier',      ['Low',    'Low',    'Medium']),
-    ('A1 - AC 2 Tier',      ['Low',    'Low',    'Low'   ]),
-    ('A2 - AC 2 Tier',      ['Low',    'Low',    'Low'   ]),
-    ('A3 - AC 2 Tier',      ['Low',    'Low',    'Medium']),
-    ('H1 - First AC',       ['Low',    'Low',    'Low'   ]),
-    ('H2 - First AC',       ['Low',    'Low',    'Low'   ]),
-    ('D1 - Divyaangjan',    ['Low',    'Low',    'Low'   ]),
-    ('D2 - Divyaangjan',    ['Low',    'Low',    'Low'   ]),
-  ];  // 25 slots total
+  // ── 5 coach composition templates (displayName, [morning, day, eve]) ────────
+
+  /// Template 0 — Premium Express (Rajdhani, Shatabdi, Vande Bharat, Deccan Queen)
+  static const List<(String, List<String>)> _tplPremium = [
+    ('GS-1 - General',     ['High',   'High',   'High'  ]),
+    ('GS-2 - General',     ['High',   'High',   'High'  ]),
+    ('CC-1 - Chair Car',   ['Medium', 'Medium', 'High'  ]),
+    ('CC-2 - Chair Car',   ['Medium', 'Medium', 'High'  ]),
+    ('CC-3 - Chair Car',   ['Medium', 'Low',    'Medium']),
+    ('CC-4 - Chair Car',   ['Low',    'Low',    'Medium']),
+    ('EC-1 - Exec Chair',  ['Low',    'Low',    'Medium']),
+    ('EC-2 - Exec Chair',  ['Low',    'Low',    'Low'   ]),
+    ('B1 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B2 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B3 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('B4 - AC 3 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('B5 - AC 3 Tier',     ['Medium', 'Medium', 'High'  ]),
+    ('A1 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A3 - AC 2 Tier',     ['Low',    'Low',    'Medium']),
+    ('HA1 - First AC',     ['Low',    'Low',    'Low'   ]),
+    ('HA2 - First AC',     ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('PC - Pantry Car',    ['Medium', 'Low',    'Medium']),
+    ('SLR1 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('SLR2 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('GEN1 - General',     ['High',   'High',   'High'  ]),
+    ('GEN2 - General',     ['High',   'High',   'High'  ]),
+  ];
+
+  /// Template 1 — Classic Mail (Howrah Mail, Golden Temple, Punjab Mail, GT Express)
+  static const List<(String, List<String>)> _tplMail = [
+    ('GS-1 - General',     ['High',   'High',   'High'  ]),
+    ('GS-2 - General',     ['High',   'High',   'High'  ]),
+    ('GS-3 - General',     ['High',   'Medium', 'High'  ]),
+    ('GS-4 - General',     ['High',   'Medium', 'High'  ]),
+    ('S1 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S2 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S3 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S4 - Sleeper',       ['Medium', 'Medium', 'High'  ]),
+    ('S5 - Sleeper',       ['Medium', 'Low',    'Medium']),
+    ('S6 - Sleeper',       ['Medium', 'Low',    'High'  ]),
+    ('S7 - Sleeper',       ['Medium', 'Low',    'Medium']),
+    ('S8 - Sleeper',       ['Low',    'Low',    'Medium']),
+    ('B1 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B2 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B3 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('B4 - AC 3 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A1 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('H1 - First AC',      ['Low',    'Low',    'Low'   ]),
+    ('H2 - First AC',      ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('SLR1 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('SLR2 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('PC - Pantry Car',    ['Medium', 'Low',    'Medium']),
+  ];
+
+  /// Template 2 — Long Distance (Duronto, Kerala Express, Coromandel, Gitanjali)
+  static const List<(String, List<String>)> _tplLong = [
+    ('GS-1 - General',     ['High',   'High',   'High'  ]),
+    ('GS-2 - General',     ['High',   'High',   'High'  ]),
+    ('S1 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S2 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S3 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S4 - Sleeper',       ['Medium', 'Medium', 'High'  ]),
+    ('S5 - Sleeper',       ['Medium', 'Low',    'Medium']),
+    ('S6 - Sleeper',       ['Medium', 'Low',    'High'  ]),
+    ('S7 - Sleeper',       ['Low',    'Low',    'Medium']),
+    ('B1 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B2 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B3 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('B4 - AC 3 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('B5 - AC 3 Tier',     ['Medium', 'Medium', 'High'  ]),
+    ('B6 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('A1 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A3 - AC 2 Tier',     ['Low',    'Low',    'Medium']),
+    ('H1 - First AC',      ['Low',    'Low',    'Low'   ]),
+    ('H2 - First AC',      ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('SLR1 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('SLR2 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('PC - Pantry Car',    ['Medium', 'Low',    'Medium']),
+  ];
+
+  /// Template 3 — Budget/Garib Rath (Garib Rath, Aug Kranti, Sampark Kranti, Mangala)
+  static const List<(String, List<String>)> _tplBudget = [
+    ('GS-1 - General',     ['High',   'High',   'High'  ]),
+    ('GS-2 - General',     ['High',   'High',   'High'  ]),
+    ('S1 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S2 - Sleeper',       ['Medium', 'Medium', 'High'  ]),
+    ('S3 - Sleeper',       ['Medium', 'Low',    'Medium']),
+    ('S4 - Sleeper',       ['Low',    'Low',    'Medium']),
+    ('B1 - AC 3 Tier',     ['High',   'Medium', 'High'  ]),
+    ('B2 - AC 3 Tier',     ['High',   'Medium', 'High'  ]),
+    ('B3 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B4 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B5 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('B6 - AC 3 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('B7 - AC 3 Tier',     ['Medium', 'Medium', 'High'  ]),
+    ('B8 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('A1 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('SLR1 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('SLR2 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('PC - Pantry Car',    ['Medium', 'Low',    'Medium']),
+    ('GEN1 - General',     ['High',   'High',   'High'  ]),
+    ('GEN2 - General',     ['High',   'High',   'High'  ]),
+    ('GEN3 - General',     ['High',   'Medium', 'High'  ]),
+    ('GEN4 - General',     ['High',   'Medium', 'High'  ]),
+  ];
+
+  /// Template 4 — Regional South (Chennai Express, Brindavan, Navjeevan, Konkan Kanya)
+  static const List<(String, List<String>)> _tplRegional = [
+    ('GS-1 - General',     ['High',   'High',   'High'  ]),
+    ('GS-2 - General',     ['High',   'High',   'High'  ]),
+    ('GS-3 - General',     ['High',   'Medium', 'High'  ]),
+    ('UR-1 - Unreserved',  ['High',   'High',   'High'  ]),
+    ('UR-2 - Unreserved',  ['High',   'High',   'High'  ]),
+    ('S1 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S2 - Sleeper',       ['High',   'Medium', 'High'  ]),
+    ('S3 - Sleeper',       ['Medium', 'Medium', 'High'  ]),
+    ('S4 - Sleeper',       ['Medium', 'Low',    'Medium']),
+    ('S5 - Sleeper',       ['Medium', 'Low',    'High'  ]),
+    ('S6 - Sleeper',       ['Low',    'Low',    'Medium']),
+    ('B1 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B2 - AC 3 Tier',     ['Medium', 'Low',    'Medium']),
+    ('B3 - AC 3 Tier',     ['Low',    'Low',    'Medium']),
+    ('A1 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('A2 - AC 2 Tier',     ['Low',    'Low',    'Low'   ]),
+    ('D1 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('D2 - Divyaangjan',   ['Low',    'Low',    'Low'   ]),
+    ('SLR1 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('SLR2 - Guard/Lug',   ['High',   'Medium', 'High'  ]),
+    ('PC - Pantry Car',    ['Medium', 'Low',    'Medium']),
+    ('GEN4 - General',     ['High',   'Medium', 'High'  ]),
+    ('GEN5 - General',     ['High',   'Medium', 'High'  ]),
+    ('GEN6 - General',     ['High',   'High',   'High'  ]),
+    ('GEN7 - General',     ['High',   'High',   'High'  ]),
+  ];
+
+  /// trainId → template index
+  static const Map<int, int> _trainTpl = {
+    1: 0, 2: 0, 5: 0, 9: 0,    // Premium (Rajdhani, Shatabdi, Vande Bharat, Deccan Queen)
+    6: 1, 11: 1, 12: 1, 20: 1, // Classic Mail (Howrah, Golden Temple, GT, Punjab)
+    3: 2, 7: 2, 14: 2, 15: 2,  // Long Distance (Duronto, Kerala, Coromandel, Gitanjali)
+    4: 3, 10: 3, 13: 3, 17: 3, // Budget (Garib Rath, Aug Kranti, Mangala, Sampark)
+    8: 4, 16: 4, 18: 4, 19: 4, // Regional South (Chennai, Brindavan, Navjeevan, Konkan)
+  };
 
   static const _levels = ['Low', 'Medium', 'High'];
 
@@ -86,14 +210,19 @@ class LocalDataService {
     final hour = DateTime.now().hour;
     final bucket = hour < 9 ? 0 : (hour < 17 ? 1 : 2);
 
+    final templates = [_tplPremium, _tplMail, _tplLong, _tplBudget, _tplRegional];
     final result = <int, List<Coach>>{};
     for (int trainId = 1; trainId <= 20; trainId++) {
-      result[trainId] = List.generate(_coachSlots.length, (slot) {
-        final (name, patterns) = _coachSlots[slot];
+      final slots = templates[_trainTpl[trainId] ?? 2];
+      result[trainId] = List.generate(slots.length, (slot) {
+        final (name, patterns) = slots[slot];
         final base = patterns[bucket];
-        // GS (General) & H (First AC) coaches keep their fixed level
+        // Fixed crowd coaches: always show their base level
         final isFixed = name.startsWith('GS') ||
-            name.startsWith('H') ||
+            name.startsWith('GEN') ||
+            name.startsWith('UR') ||
+            name.startsWith('SLR') ||
+            name.startsWith('PC') ||
             name.startsWith('D');
         final level = isFixed ? base : _variedLevel(base, trainId, slot);
         return Coach(
