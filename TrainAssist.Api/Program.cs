@@ -465,26 +465,29 @@ app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, IWe
     try
     {
         // ── 1. Validate SMTP config ──────────────────────────────────────────
-        var smtpHost = cfg["SMTP_HOST"];
+        // Request-supplied values take priority over server appsettings
+        var smtpHost = (!string.IsNullOrWhiteSpace(req.SmtpHost) ? req.SmtpHost : cfg["SMTP_HOST"]);
         if (string.IsNullOrWhiteSpace(smtpHost))
         {
-            logger.LogError("SMTP_HOST env var is not set — cannot send email");
-            return Results.BadRequest(new { error = "SMTP not configured on server. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM env vars." });
+            logger.LogError("SMTP_HOST not set in request or appsettings — cannot send email");
+            return Results.BadRequest(new { error = "SMTP not configured. Fill in SMTP settings in the app." });
         }
 
         var smtpPort = 587;
-        int.TryParse(cfg["SMTP_PORT"], out smtpPort);
-        var smtpUser = cfg["SMTP_USER"];
-        var smtpPass = cfg["SMTP_PASS"];
+        int.TryParse(!string.IsNullOrWhiteSpace(req.SmtpPort) ? req.SmtpPort : cfg["SMTP_PORT"], out smtpPort);
+        var smtpUser = !string.IsNullOrWhiteSpace(req.SmtpUser) ? req.SmtpUser : cfg["SMTP_USER"];
+        var smtpPass = !string.IsNullOrWhiteSpace(req.SmtpPass) ? req.SmtpPass : cfg["SMTP_PASS"];
         // SMTP_FROM must match an address authorized by your SMTP server
-        var smtpFrom = cfg["SMTP_FROM"] ?? smtpUser;
+        var smtpFrom = !string.IsNullOrWhiteSpace(req.SmtpUser) ? req.SmtpUser
+                     : !string.IsNullOrWhiteSpace(cfg["SMTP_FROM"]) ? cfg["SMTP_FROM"]
+                     : smtpUser;
         if (string.IsNullOrWhiteSpace(smtpFrom))
         {
-            logger.LogError("SMTP_FROM (or SMTP_USER) env var not set");
-            return Results.BadRequest(new { error = "SMTP sender not configured. Set SMTP_FROM env var." });
+            logger.LogError("SMTP sender not configured in request or appsettings");
+            return Results.BadRequest(new { error = "SMTP sender not configured. Fill in SMTP settings in the app." });
         }
         var enableSsl = true;
-        bool.TryParse(cfg["SMTP_SSL"], out enableSsl);
+        bool.TryParse(!string.IsNullOrWhiteSpace(req.SmtpSsl) ? req.SmtpSsl : cfg["SMTP_SSL"], out enableSsl);
 
         logger.LogInformation("Sending SOS email → to:{To} from:{From} smtp:{Host}:{Port} ssl:{Ssl}",
             req.To, smtpFrom, smtpHost, smtpPort, enableSsl);
@@ -552,8 +555,19 @@ app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, IWe
 .Produces(200)
 .Produces(400);
 
-// DTO for sendmail
-public record SendMailRequest(string To, string? Subject, string? Body, string? AttachmentUrl, string? From);
-
 app.Run();
+
+// DTO for sendmail  (SMTP* fields are optional — if supplied they override server appsettings)
+public record SendMailRequest(
+    string To,
+    string? Subject,
+    string? Body,
+    string? AttachmentUrl,
+    string? From,
+    string? SmtpHost,
+    string? SmtpPort,
+    string? SmtpUser,
+    string? SmtpPass,
+    string? SmtpSsl
+);
 

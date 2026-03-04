@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:record/record.dart';
+import 'local_chat.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,6 +25,8 @@ class _LogEntry {
   _LogEntry(this.msg, {this.icon = Icons.info_outline, this.color = Colors.black87});
 }
 
+
+
 // ═══════════════════════════════════════════════════════════════
 class SOSScreen extends StatefulWidget {
   const SOSScreen({super.key});
@@ -37,13 +39,20 @@ class _SOSScreenState extends State<SOSScreen> {
       List.generate(3, (_) => TextEditingController());
     final List<TextEditingController> _emailCtrls =
       List.generate(3, (_) => TextEditingController());
-    final TextEditingController _senderCtrl = TextEditingController();
+    final TextEditingController _senderCtrl   = TextEditingController();
+    final TextEditingController _whatsappCtrl = TextEditingController();
+    final TextEditingController _smtpHostCtrl = TextEditingController();
+    final TextEditingController _smtpUserCtrl = TextEditingController();
+    final TextEditingController _smtpPassCtrl = TextEditingController();
+    bool _smtpPassVisible = false;
   bool _guardActive = false;
   bool _sosRunning  = false;
+  bool _enableSms = true;
+  bool _enableWhatsApp = true;
   final List<_LogEntry> _log = [];
   int   _tapCount   = 0;
   Timer? _tapTimer;
-  final _recorder = AudioRecorder();
+  // native recorder is invoked via MethodChannel handlers in MainActivity
 
   @override
   void initState() {
@@ -58,7 +67,9 @@ class _SOSScreenState extends State<SOSScreen> {
   void dispose() {
     for (final c in _ctrls) c.dispose();
     _tapTimer?.cancel();
-    _recorder.dispose();
+    _smtpHostCtrl.dispose();
+    _smtpUserCtrl.dispose();
+    _smtpPassCtrl.dispose();
     super.dispose();
   }
 
@@ -68,7 +79,13 @@ class _SOSScreenState extends State<SOSScreen> {
       _ctrls[i].text = prefs.getString('sos_contact_$i') ?? '';
       _emailCtrls[i].text = prefs.getString('sos_email_$i') ?? '';
     }
-    _senderCtrl.text = prefs.getString('sos_email_sender') ?? '';
+    _senderCtrl.text   = prefs.getString('sos_email_sender')  ?? '';
+    _smtpHostCtrl.text = prefs.getString('sos_smtp_host')     ?? 'smtp.gmail.com';
+    _smtpUserCtrl.text = prefs.getString('sos_smtp_user')     ?? '';
+    _smtpPassCtrl.text = prefs.getString('sos_smtp_pass')     ?? '';
+    _enableSms = prefs.getBool('sos_enable_sms') ?? true;
+    _enableWhatsApp = prefs.getBool('sos_enable_whatsapp') ?? true;
+    _whatsappCtrl.text = prefs.getString('sos_whatsapp') ?? '';
     if (mounted) setState(() {});
   }
 
@@ -79,7 +96,13 @@ class _SOSScreenState extends State<SOSScreen> {
       await prefs.setString('sos_email_$i', _emailCtrls[i].text.trim());
     }
     await prefs.setString('sos_email_sender', _senderCtrl.text.trim());
-    _addLog('Contacts saved', icon: Icons.check_circle, color: Colors.green);
+    await prefs.setString('sos_smtp_host',    _smtpHostCtrl.text.trim());
+    await prefs.setString('sos_smtp_user',    _smtpUserCtrl.text.trim());
+    await prefs.setString('sos_smtp_pass',    _smtpPassCtrl.text.trim());
+    await prefs.setBool('sos_enable_sms', _enableSms);
+    await prefs.setBool('sos_enable_whatsapp', _enableWhatsApp);
+    await prefs.setString('sos_whatsapp', _whatsappCtrl.text.trim());
+    _addLog('Contacts & SMTP settings saved', icon: Icons.check_circle, color: Colors.green);
   }
 
   List<String> get _phones =>
@@ -102,41 +125,80 @@ class _SOSScreenState extends State<SOSScreen> {
 
     try {
       // 1 ─ GPS
+      if (!_enableWhatsApp) {
+        _addLog('WhatsApp must be enabled in settings. Aborting SOS.', icon: Icons.error, color: Colors.red);
+        if (mounted) setState(() => _sosRunning = false);
+        return;
+      }
+      // Ensure a WhatsApp number is configured when WhatsApp is required
+      if (_enableWhatsApp && _whatsappCtrl.text.trim().isEmpty) {
+        _addLog('WhatsApp number is required in settings. Aborting SOS.', icon: Icons.error, color: Colors.red);
+        if (mounted) setState(() => _sosRunning = false);
+        return;
+      }
       _addLog('Getting GPS...', icon: Icons.gps_fixed, color: Colors.blue);
-      final pos = await LocationService.getCurrentLocation();
-      final mapsLink =
-          pos != null ? LocationService.mapsLink(pos.latitude, pos.longitude) : null;
-      if (mapsLink != null) {
-        _addLog('Location: ${pos!.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
+      // Request runtime location permission (some devices need explicit prompt)
+      try {
+        final locPerm = await Permission.locationWhenInUse.request();
+        if (locPerm != PermissionStatus.granted) {
+          _addLog('Location permission not granted; opening settings...', icon: Icons.location_off, color: Colors.orange);
+          // Try to open location settings to help the user enable GPS
+          final opened = await LocationService.openLocationSettings();
+          if (!opened) await openAppSettings();
+        }
+      } catch (_) {}
+
+      var pos = await LocationService.getCurrentLocation();
+      // Retry once after a short delay (user may have just enabled GPS in settings)
+      if (pos == null) {
+        _addLog('GPS unavailable — retrying shortly...', icon: Icons.gps_off, color: Colors.orange);
+        await Future.delayed(const Duration(seconds: 3));
+        pos = await LocationService.getCurrentLocation();
+      }
+      final mapsLink = pos != null ? LocationService.mapsLink(pos.latitude, pos.longitude) : null;
+      String? address;
+      if (pos != null) {
+        _addLog('Location: ${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}',
             icon: Icons.location_on, color: Colors.green);
+        try {
+          address = await LocationService.reverseGeocode(pos.latitude, pos.longitude);
+          if (address != null) _addLog('Address: $address', icon: Icons.place, color: Colors.green[700]!);
+        } catch (_) {}
       } else {
         _addLog('GPS unavailable', icon: Icons.gps_off, color: Colors.orange);
       }
 
-      // 2 ─ Auto-record 15 s
+      // 2 ─ Auto-record 15 s using native recorder (MethodChannel)
       String? audioUrl;
-      if (await _recorder.hasPermission()) {
+      String? savedRecordingPath; // keep path alive for fallback
+      final micStatus = await Permission.microphone.request();
+      if (micStatus == PermissionStatus.granted) {
         _addLog('Recording 15 s voice note...', icon: Icons.mic, color: Colors.blue);
-        final dir  = await getTemporaryDirectory();
-        final path = '${dir.path}/sos_${DateTime.now().millisecondsSinceEpoch}.m4a';
-        await _recorder.start(
-          const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000),
-          path: path,
-        );
-        await Future.delayed(const Duration(seconds: 15));
-        final saved = await _recorder.stop();
-        if (saved != null) {
-          _addLog('Uploading voice note...', icon: Icons.upload, color: Colors.blue);
-          audioUrl = await _uploadVoiceNote(saved);
-          _addLog(
-            audioUrl != null ? 'Voice note uploaded' : 'Upload failed (SMS without audio)',
-            icon: audioUrl != null ? Icons.check_circle : Icons.warning,
-            color: audioUrl != null ? Colors.green : Colors.orange,
-          );
-          try { File(saved).deleteSync(); } catch (_) {}
+        try {
+          await _sosCh.invokeMethod('startRecording');
+          await Future.delayed(const Duration(seconds: 15));
+          final saved = await _sosCh.invokeMethod<String>('stopRecording');
+          if (saved != null && saved.isNotEmpty) {
+            savedRecordingPath = saved;
+            _addLog('Recorded → $saved', icon: Icons.mic_none, color: Colors.green);
+            _addLog('Uploading voice note...', icon: Icons.upload, color: Colors.blue);
+            audioUrl = await _uploadVoiceNote(saved);
+            _addLog(
+              audioUrl != null ? 'Voice note uploaded' : 'Upload failed – will retry',
+              icon: audioUrl != null ? Icons.check_circle : Icons.warning,
+              color: audioUrl != null ? Colors.green : Colors.orange,
+            );
+            // Only delete the file once upload succeeded
+            if (audioUrl != null) {
+              try { File(saved).deleteSync(); } catch (_) {}
+              savedRecordingPath = null;
+            }
+          }
+        } catch (e) {
+          _addLog('Recording error: $e', icon: Icons.mic_off, color: Colors.orange);
         }
       } else {
-        _addLog('Mic permission denied', icon: Icons.mic_off, color: Colors.orange);
+        _addLog('Mic permission denied – grant in Settings', icon: Icons.mic_off, color: Colors.orange);
       }
 
       // 3 ─ Build SMS body
@@ -145,38 +207,71 @@ class _SOSScreenState extends State<SOSScreen> {
         ..writeln('SOS EMERGENCY - TrainAssist')
         ..writeln('Time: $now');
       if (mapsLink != null) sb.writeln('Location: $mapsLink');
+      if (address != null) sb.writeln('Address: $address');
       if (audioUrl  != null) sb.writeln('Voice note: $audioUrl');
       sb.write('Please help immediately!');
       // Notify recipient to check email for the voice note
       sb.write(' Check your email immediately.');
       final smsBody = sb.toString();
 
-      // 4 ─ Send SMS to all saved contacts
+      // 4 ─ Send actions (SMS and/or WhatsApp) to saved contacts
       final phones = _phones;
-          if (phones.isEmpty) {
-        _addLog('No contacts — opening SMS composer',
-            icon: Icons.sms, color: Colors.orange);
-        await _openComposer('', smsBody);
+      if (phones.isEmpty) {
+        _addLog('No contacts saved', icon: Icons.sms_failed, color: Colors.orange);
+        if (_enableSms) {
+          _addLog('Opening SMS composer (no numbers saved)', icon: Icons.sms, color: Colors.orange);
+          await _openComposer('', smsBody);
+        }
+        if (_enableWhatsApp) {
+          _addLog('No phone numbers to open WhatsApp for', icon: Icons.chat, color: Colors.orange);
+        }
       } else {
-        _addLog('Sending to ${phones.length} contact(s)...',
-            icon: Icons.send, color: Colors.blue);
+        _addLog('Processing ${phones.length} contact(s)...', icon: Icons.send, color: Colors.blue);
         for (final phone in phones) {
-          final ok = await _sendSmsNative(phone, smsBody);
-          if (ok) {
-            _addLog('Sent to $phone', icon: Icons.check, color: Colors.green);
+          if (_enableSms) {
+            final ok = await _sendSmsNative(phone, smsBody);
+            if (ok) {
+              _addLog('SMS sent to $phone', icon: Icons.check, color: Colors.green);
+            } else {
+              _addLog('SMS composer fallback: $phone', icon: Icons.open_in_new, color: Colors.orange);
+              await _openComposer(phone, smsBody);
+            }
           } else {
-            _addLog('Composer fallback: $phone',
-                icon: Icons.open_in_new, color: Colors.orange);
-            await _openComposer(phone, smsBody);
+            _addLog('SMS disabled for this SOS', icon: Icons.sms_failed, color: Colors.grey[700]!);
+          }
+
+          if (_enableWhatsApp) {
+            // prefer explicit WhatsApp number if provided, else use contact phone
+            final waTarget = _whatsappCtrl.text.trim().isNotEmpty ? _whatsappCtrl.text.trim() : phone;
+            try {
+              await _sosCh.invokeMethod('enableAutoWhatsAppSend', {'durationMs': 15000});
+            } catch (_) {}
+            await _sendWhatsAppPrefill(waTarget, smsBody);
+            await Future.delayed(const Duration(milliseconds: 700));
           }
         }
       }
 
-      // Attempt to email the voice note automatically (best-effort).
-      // Reads 'sos_email' from SharedPreferences if set.
-      if (audioUrl != null) {
-        await _sendEmailAutomatic(audioUrl, mapsLink);
+      // ── Fallback upload: use the just-recorded file, then search disk ──
+      if (audioUrl == null) {
+        // Try the path we held onto first
+        String? fallback = savedRecordingPath ?? await _findLatestRecording();
+        if (fallback != null && File(fallback).existsSync()) {
+          _addLog('Retrying upload with local file…', icon: Icons.sd_storage, color: Colors.grey[700]!);
+          audioUrl = await _uploadVoiceNote(fallback);
+          if (audioUrl != null) {
+            _addLog('Retry upload succeeded', icon: Icons.check_circle, color: Colors.green);
+            try { File(fallback).deleteSync(); } catch (_) {}
+          } else {
+            _addLog('Retry upload also failed', icon: Icons.cloud_off, color: Colors.orange);
+          }
+        } else {
+          _addLog('No local recording found for fallback', icon: Icons.sd_storage, color: Colors.orange);
+        }
       }
+
+      // Always send email – with audio attachment if available, location-only otherwise
+      await _sendEmailAutomatic(audioUrl, mapsLink);
 
       // 5 ─ POST to backend
       final userProv = Provider.of<UserProvider>(context, listen: false);
@@ -234,7 +329,35 @@ class _SOSScreenState extends State<SOSScreen> {
     }
   }
 
-  Future<void> _sendEmailAutomatic(String audioUrl, String? mapsLink) async {
+  // Open WhatsApp with a prefilled message for the given phone number.
+  // Note: this pre-fills the message; the user must tap Send in WhatsApp.
+  Future<void> _sendWhatsAppPrefill(String phone, String body) async {
+    try {
+      final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+      if (digits.isEmpty) {
+        _addLog('WhatsApp: invalid phone $phone', icon: Icons.chat, color: Colors.orange);
+        return;
+      }
+      // Prefer app URI which opens WhatsApp directly; fallback to wa.me web link.
+      final appUri = Uri.parse('whatsapp://send?phone=$digits&text=${Uri.encodeComponent(body)}');
+      if (await canLaunchUrl(appUri)) {
+        await launchUrl(appUri, mode: LaunchMode.externalApplication);
+        _addLog('Opened WhatsApp (app) for $phone', icon: Icons.chat, color: Colors.blue);
+        return;
+      }
+      final webUri = Uri.parse('https://wa.me/$digits?text=${Uri.encodeComponent(body)}');
+      if (await canLaunchUrl(webUri)) {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        _addLog('Opened WhatsApp (web) for $phone', icon: Icons.chat, color: Colors.blue);
+      } else {
+        _addLog('Cannot open WhatsApp', icon: Icons.chat_bubble_outline, color: Colors.orange);
+      }
+    } catch (e) {
+      _addLog('WhatsApp error: $e', icon: Icons.error, color: Colors.red);
+    }
+  }
+
+  Future<void> _sendEmailAutomatic(String? audioUrl, String? mapsLink) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final emails = <String>[];
@@ -247,19 +370,31 @@ class _SOSScreenState extends State<SOSScreen> {
         return;
       }
 
-      final uri = Uri.parse('${ApiConfig.baseUrl}/api/sendmail');
-      // include the configured sender as From when calling the backend
-      final prefs2 = await SharedPreferences.getInstance();
-      final sender = prefs2.getString('sos_email_sender')?.trim();
+      final uri    = Uri.parse('${ApiConfig.baseUrl}/api/sendmail');
+      final sender = prefs.getString('sos_email_sender')?.trim();
+      final smtpHost = prefs.getString('sos_smtp_host')?.trim();
+      final smtpUser = prefs.getString('sos_smtp_user')?.trim();
+      final smtpPass = prefs.getString('sos_smtp_pass')?.trim();
 
       for (final email in emails) {
         try {
+          final subject = audioUrl != null
+              ? 'TrainAssist SOS – Voice Note + Location'
+              : 'TrainAssist SOS ALERT – Location Only';
+          final bodyText = audioUrl != null
+              ? 'EMERGENCY SOS triggered via TrainAssist.\n\nLocation: ${mapsLink ?? "unavailable"}\n\nVoice note: $audioUrl'
+              : 'EMERGENCY SOS triggered via TrainAssist.\n\nLocation: ${mapsLink ?? "unavailable"}\n\n(Voice note upload failed — check the device.)';
           final payload = jsonEncode({
             'to': email,
-            'subject': 'TrainAssist SOS Voice Note',
-            'body': 'You have received a voice note from an SOS. Location: ${mapsLink ?? "N/A"}',
-            'attachmentUrl': audioUrl,
-            'from': sender
+            'subject': subject,
+            'body': bodyText,
+            if (audioUrl != null) 'attachmentUrl': audioUrl,
+            'from': sender,
+            if (smtpHost != null && smtpHost.isNotEmpty) 'smtpHost': smtpHost,
+            if (smtpUser != null && smtpUser.isNotEmpty) 'smtpUser': smtpUser,
+            if (smtpPass != null && smtpPass.isNotEmpty) 'smtpPass': smtpPass,
+            'smtpPort': '587',
+            'smtpSsl': 'true',
           });
           final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
           if (res.statusCode == 200) {
@@ -279,6 +414,20 @@ class _SOSScreenState extends State<SOSScreen> {
       }
     } catch (e) {
       _addLog('Email error: $e', icon: Icons.email, color: Colors.red);
+    }
+  }
+
+  Future<String?> _findLatestRecording() async {
+    try {
+      final baseDir = await getApplicationDocumentsDirectory();
+      final recordingsDir = Directory('${baseDir.path}/TrainAssist/SOSRecordings');
+      if (!await recordingsDir.exists()) return null;
+      final files = recordingsDir.listSync().whereType<File>().toList();
+      if (files.isEmpty) return null;
+      files.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      return files.first.path;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -327,6 +476,10 @@ class _SOSScreenState extends State<SOSScreen> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(
                     builder: (_) => const RecentSOSReportsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LocalChatScreen())),
           ),
         ],
       ),
@@ -485,6 +638,29 @@ class _SOSScreenState extends State<SOSScreen> {
               'SMS is sent AUTOMATICALLY to every saved number.',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Send SMS'),
+                  subtitle: const Text('Toggle automatic SMS delivery'),
+                  value: _enableSms,
+                  activeColor: Colors.red,
+                  onChanged: (v) => setState(() => _enableSms = v),
+                ),
+              ),
+              Expanded(
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Send WhatsApp (required)'),
+                  subtitle: const Text('WhatsApp prefill will be opened for each contact'),
+                  value: _enableWhatsApp,
+                  activeColor: Colors.green,
+                  onChanged: (v) => setState(() => _enableWhatsApp = v),
+                ),
+              ),
+            ]),
             const SizedBox(height: 12),
             for (int i = 0; i < 3; i++) ...[
               TextField(
@@ -500,6 +676,18 @@ class _SOSScreenState extends State<SOSScreen> {
               ),
               if (i < 2) const SizedBox(height: 8),
             ],
+            const SizedBox(height: 8),
+            TextField(
+              controller: _whatsappCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'WhatsApp number (single)',
+                hintText: '+91 XXXXXXXXXX',
+                prefixIcon: const Icon(Icons.chat, color: Colors.green),
+              ),
+            ),
             const SizedBox(height: 12),
             Text('Email sender & recipients (optional):', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
             const SizedBox(height: 8),
@@ -529,6 +717,53 @@ class _SOSScreenState extends State<SOSScreen> {
               ),
               if (i < 2) const SizedBox(height: 8),
             ],
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 4),
+            Text('SMTP settings (for auto email):', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+            const SizedBox(height: 4),
+            Text('Gmail: host=smtp.gmail.com  •  use an App Password\n(myaccount.google.com/apppasswords)', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _smtpHostCtrl,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                labelText: 'SMTP Host',
+                hintText: 'smtp.gmail.com',
+                prefixIcon: Icon(Icons.dns, color: Colors.red),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _smtpUserCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                labelText: 'SMTP Username (sender email)',
+                hintText: 'yourname@gmail.com',
+                prefixIcon: Icon(Icons.alternate_email, color: Colors.red),
+              ),
+            ),
+            const SizedBox(height: 8),
+            StatefulBuilder(builder: (ctx, setInner) {
+              return TextField(
+                controller: _smtpPassCtrl,
+                obscureText: !_smtpPassVisible,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  labelText: 'SMTP Password / App Password',
+                  hintText: '•••••••••••••••',
+                  prefixIcon: const Icon(Icons.lock, color: Colors.red),
+                  suffixIcon: IconButton(
+                    icon: Icon(_smtpPassVisible ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() => _smtpPassVisible = !_smtpPassVisible),
+                  ),
+                ),
+              );
+            }),
           ],
         ),
       ),

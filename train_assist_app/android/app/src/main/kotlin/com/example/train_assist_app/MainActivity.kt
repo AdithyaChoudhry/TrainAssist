@@ -1,11 +1,16 @@
 package com.example.train_assist_app
 
 import android.content.Intent
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.telephony.SmsManager
 import android.view.KeyEvent
+import android.media.MediaRecorder
+import android.util.Log
+import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -51,6 +56,10 @@ class MainActivity : FlutterActivity() {
             "com.trainassist/sos"
         )
 
+        // Recorder state (native fallback for reliable file creation)
+        var mediaRecorder: MediaRecorder? = null
+        var currentRecordingPath: String? = null
+
         sosChannel?.setMethodCallHandler { call, result ->
             when (call.method) {
 
@@ -89,6 +98,75 @@ class MainActivity : FlutterActivity() {
                     }
                 }
 
+                // Start native audio recording and return file path in app files dir
+                "startRecording" -> {
+                    try {
+                        val recordingsDir = File(filesDir, "TrainAssist/SOSRecordings")
+                        if (!recordingsDir.exists()) recordingsDir.mkdirs()
+                        val outFile = File(recordingsDir, "sos_${System.currentTimeMillis()}.m4a")
+
+                        mediaRecorder = MediaRecorder()
+                        mediaRecorder?.setAudioSource(MediaRecorder.AudioSource.MIC)
+                        mediaRecorder?.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                        mediaRecorder?.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                        mediaRecorder?.setAudioSamplingRate(44100)
+                        mediaRecorder?.setAudioEncodingBitRate(96000)
+                        mediaRecorder?.setOutputFile(outFile.absolutePath)
+                        mediaRecorder?.prepare()
+                        mediaRecorder?.start()
+
+                        currentRecordingPath = outFile.absolutePath
+                        result.success(currentRecordingPath)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "startRecording failed", e)
+                        try { mediaRecorder?.release() } catch (_: Exception) {}
+                        mediaRecorder = null
+                        currentRecordingPath = null
+                        result.error("RECORD_FAILED", e.message, null)
+                    }
+                }
+
+                // Stop native recording and return saved file path (or error)
+                "stopRecording" -> {
+                    try {
+                        mediaRecorder?.stop()
+                        mediaRecorder?.release()
+                        mediaRecorder = null
+                        val saved = currentRecordingPath
+                        currentRecordingPath = null
+                        if (saved == null) {
+                            result.error("NO_RECORDING", "No recording in progress", null)
+                        } else {
+                            result.success(saved)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "stopRecording failed", e)
+                        try { mediaRecorder?.release() } catch (_: Exception) {}
+                        mediaRecorder = null
+                        currentRecordingPath = null
+                        result.error("STOP_FAILED", e.message, null)
+                    }
+                }
+
+                "enableAutoWhatsAppSend" -> {
+                    val duration = call.argument<Number>("durationMs")?.toLong() ?: 15000L
+                    try {
+                        val prefs = getSharedPreferences("train_assist_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putLong("auto_whatsapp_send_until", System.currentTimeMillis() + duration).apply()
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("PREF_ERROR", e.message, null)
+                    }
+                }
+                "disableAutoWhatsAppSend" -> {
+                    try {
+                        val prefs = getSharedPreferences("train_assist_prefs", Context.MODE_PRIVATE)
+                        prefs.edit().putLong("auto_whatsapp_send_until", 0L).apply()
+                        result.success(null)
+                    } catch (e: Exception) {
+                        result.error("PREF_ERROR", e.message, null)
+                    }
+                }
                 else -> result.notImplemented()
             }
         }

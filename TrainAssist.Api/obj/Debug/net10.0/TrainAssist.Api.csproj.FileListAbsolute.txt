@@ -123,3 +123,4 @@
 /Users/adithyachoudhrym/TrainAssist/TrainAssist.Api/obj/Debug/net10.0/TrainAssist.Api.genruntimeconfig.cache
 /Users/adithyachoudhrym/TrainAssist/TrainAssist.Api/obj/Debug/net10.0/ref/TrainAssist.Api.dll
 /Users/adithyachoudhrym/TrainAssist/TrainAssist.Api/obj/Debug/net10.0/TrainAssist.Api.sourcelink.json
+/Users/adithyachoudhrym/TrainAssist/TrainAssist.Api/bin/Debug/net10.0/TrainAssist.Api.staticwebassets.runtime.json

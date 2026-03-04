@@ -58,6 +58,8 @@ dependencies:
 
   # GPS / location (no payment needed — device GPS)
   geolocator: ^13.0.2
+  # Reverse geocoding to convert coordinates to human-readable address
+  geocoding: ^2.0.5
 
   # Open SMS composer, maps links, share sheet
   url_launcher: ^6.3.1

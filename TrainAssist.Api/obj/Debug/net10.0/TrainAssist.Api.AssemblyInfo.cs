@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TrainAssist.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c4680467c9c19383e2351be995115ec07db8db6c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1d68124287d0330a238f8e3e0279047166cc6131")]
 [assembly: System.Reflection.AssemblyProductAttribute("TrainAssist.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TrainAssist.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
