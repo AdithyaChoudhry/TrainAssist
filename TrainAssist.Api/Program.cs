@@ -477,7 +477,22 @@ app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, ILo
         bool.TryParse(cfg["SMTP_SSL"], out enableSsl);
 
         var message = new MailMessage();
-        message.From = new MailAddress(smtpFrom);
+        // If caller provided a From in payload, trust it; otherwise use configured SMTP_FROM
+        if (!string.IsNullOrWhiteSpace(req.From))
+        {
+            try
+            {
+                message.From = new MailAddress(req.From);
+            }
+            catch
+            {
+                message.From = new MailAddress(smtpFrom);
+            }
+        }
+        else
+        {
+            message.From = new MailAddress(smtpFrom);
+        }
         message.To.Add(req.To);
         message.Subject = req.Subject ?? "TrainAssist SOS Voice Note";
         message.Body = req.Body ?? "";
@@ -522,7 +537,7 @@ app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, ILo
 .Produces(400);
 
 // DTO for sendmail
-public record SendMailRequest(string To, string? Subject, string? Body, string? AttachmentUrl);
+public record SendMailRequest(string To, string? Subject, string? Body, string? AttachmentUrl, string? From);
 
 app.Run();
 

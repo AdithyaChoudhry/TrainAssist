@@ -37,6 +37,7 @@ class _SOSScreenState extends State<SOSScreen> {
       List.generate(3, (_) => TextEditingController());
     final List<TextEditingController> _emailCtrls =
       List.generate(3, (_) => TextEditingController());
+    final TextEditingController _senderCtrl = TextEditingController();
   bool _guardActive = false;
   bool _sosRunning  = false;
   final List<_LogEntry> _log = [];
@@ -67,6 +68,7 @@ class _SOSScreenState extends State<SOSScreen> {
       _ctrls[i].text = prefs.getString('sos_contact_$i') ?? '';
       _emailCtrls[i].text = prefs.getString('sos_email_$i') ?? '';
     }
+    _senderCtrl.text = prefs.getString('sos_email_sender') ?? '';
     if (mounted) setState(() {});
   }
 
@@ -76,6 +78,7 @@ class _SOSScreenState extends State<SOSScreen> {
       await prefs.setString('sos_contact_$i', _ctrls[i].text.trim());
       await prefs.setString('sos_email_$i', _emailCtrls[i].text.trim());
     }
+    await prefs.setString('sos_email_sender', _senderCtrl.text.trim());
     _addLog('Contacts saved', icon: Icons.check_circle, color: Colors.green);
   }
 
@@ -240,6 +243,10 @@ class _SOSScreenState extends State<SOSScreen> {
       }
 
       final uri = Uri.parse('${ApiConfig.baseUrl}/api/sendmail');
+      // include the configured sender as From when calling the backend
+      final prefs2 = await SharedPreferences.getInstance();
+      final sender = prefs2.getString('sos_email_sender')?.trim();
+
       for (final email in emails) {
         try {
           final payload = jsonEncode({
@@ -247,6 +254,7 @@ class _SOSScreenState extends State<SOSScreen> {
             'subject': 'TrainAssist SOS Voice Note',
             'body': 'You have received a voice note from an SOS. Location: ${mapsLink ?? "N/A"}',
             'attachmentUrl': audioUrl,
+            'from': sender
           });
           final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
           if (res.statusCode == 200) {
@@ -482,7 +490,19 @@ class _SOSScreenState extends State<SOSScreen> {
               if (i < 2) const SizedBox(height: 8),
             ],
             const SizedBox(height: 12),
-            Text('Also email (optional):', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+            Text('Email sender & recipients (optional):', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _senderCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                labelText: 'Sender email',
+                hintText: 'sender@example.com',
+                prefixIcon: const Icon(Icons.person, color: Colors.red),
+              ),
+            ),
             const SizedBox(height: 8),
             for (int i = 0; i < 3; i++) ...[
               TextField(
@@ -491,8 +511,8 @@ class _SOSScreenState extends State<SOSScreen> {
                 decoration: InputDecoration(
                   isDense: true,
                   border: const OutlineInputBorder(),
-                  labelText: 'Email ${i + 1}',
-                  hintText: 'you@example.com',
+                  labelText: 'Recipient ${i + 1}',
+                  hintText: 'recipient@example.com',
                   prefixIcon: const Icon(Icons.email, color: Colors.red),
                 ),
               ),
