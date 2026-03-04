@@ -6,69 +6,109 @@ import android.os.*
 import androidx.core.app.NotificationCompat
 
 /**
- * Foreground service that listens for rapid screen-off events.
- * When the user presses the power button 3× within 3 seconds → calls Flutter
- * via MethodChannel("com.trainassist/sos") → "power_sos".
+ * SosPowerService — Foreground service that provides two reliable SOS triggers:
  *
- * Note: ACTION_SCREEN_OFF/ON must be registered dynamically (cannot be in manifest).
- * This service keeps the registration alive even when the app is in the background.
+ *  1. NOTIFICATION ACTION BUTTON — "🆘 TRIGGER SOS" in the persistent
+ *     notification. Tappable from lock screen at any time. PRIMARY trigger.
+ *
+ *  2. SCREEN-OFF COUNTING (power-button backup) — 3 screen-off events within
+ *     3 seconds fires the SOS. Works when phone is idle/locked.
+ *
+ * On trigger → invokes MethodChannel "power_sos" → Flutter handles GPS,
+ * voice-note auto-record, upload, and auto-SMS send.
  */
 class SosPowerService : Service() {
 
     private val channelId = "sos_guard_channel"
     private val notifId   = 9001
 
-    // Timestamps of recent screen-OFF events
+    companion object {
+        const val ACTION_TRIGGER_SOS = "com.trainassist.TRIGGER_SOS"
+    }
+
+    // ── Screen-off counting (power-button backup) ────────────────────────────
     private val screenOffTimes = mutableListOf<Long>()
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
             if (intent.action != Intent.ACTION_SCREEN_OFF) return
-
             val now = System.currentTimeMillis()
             screenOffTimes.add(now)
-            // Keep only events within last 3 seconds
             screenOffTimes.removeAll { now - it > 3_000L }
-
             if (screenOffTimes.size >= 3) {
                 screenOffTimes.clear()
-                // Fire the Flutter callback on main thread
-                Handler(Looper.getMainLooper()).post {
-                    MainActivity.sosChannel?.invokeMethod("power_sos", null)
-                }
+                fireSos()
             }
+        }
+    }
+
+    // ── Notification-button receiver ─────────────────────────────────────────
+    private val sosButtonReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            if (intent.action == ACTION_TRIGGER_SOS) fireSos()
         }
     }
 
     override fun onCreate() {
         super.onCreate()
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_SCREEN_OFF)
+        registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        val btnFilter = IntentFilter(ACTION_TRIGGER_SOS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(sosButtonReceiver, btnFilter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(sosButtonReceiver, btnFilter)
         }
-        registerReceiver(screenReceiver, filter)
         startForeground(notifId, buildNotification())
     }
 
     override fun onDestroy() {
-        try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(screenReceiver) }    catch (_: Exception) {}
+        try { unregisterReceiver(sosButtonReceiver) } catch (_: Exception) {}
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun fireSos() {
+        Handler(Looper.getMainLooper()).post {
+            MainActivity.sosChannel?.invokeMethod("power_sos", null)
+        }
+    }
+
     private fun buildNotification(): Notification {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (nm.getNotificationChannel(channelId) == null) {
             nm.createNotificationChannel(
-                NotificationChannel(channelId, "SOS Guard", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(channelId, "SOS Guard", NotificationManager.IMPORTANCE_HIGH)
+                    .apply { description = "TrainAssist emergency SOS guard" }
             )
         }
+
+        // Notification body tap → open app
+        val openApp = packageManager.getLaunchIntentForPackage(packageName)?.let {
+            PendingIntent.getActivity(
+                this, 0, it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+
+        // Action button → broadcast ACTION_TRIGGER_SOS
+        val triggerPi = PendingIntent.getBroadcast(
+            this, 1,
+            Intent(ACTION_TRIGGER_SOS).setPackage(packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("TrainAssist SOS Guard")
-            .setContentText("Press power button 3× quickly for emergency SOS")
+            .setContentTitle("TrainAssist SOS Guard Active")
+            .setContentText("Vol-UP×3 in app  •  Tap button below for instant SOS →")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openApp)
+            .addAction(android.R.drawable.ic_delete, "🆘 TRIGGER SOS NOW", triggerPi)
             .build()
     }
 }

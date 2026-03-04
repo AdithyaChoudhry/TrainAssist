@@ -75,6 +75,9 @@ if (app.Environment.IsDevelopment())
 // Enable CORS
 app.UseCors("AllowAll");
 
+// Serve wwwroot/uploads so voice-note files are publicly downloadable
+app.UseStaticFiles();
+
 // Middleware to log all incoming requests
 app.Use(async (context, next) =>
 {
@@ -399,6 +402,60 @@ app.MapGet("/api/sos", async (AppDbContext db, ILogger<Program> logger) =>
 .WithName("GetSOSReports")
 .WithTags("SOS")
 .Produces<List<SOSReportResponseDto>>(200);
+
+// ── POST /api/uploads ─────────────────────────────────────────────────────────
+// Accepts a multipart voice-note file, saves it under wwwroot/uploads,
+// and returns a publicly accessible download URL.
+// Flutter sends:  Content-Type: multipart/form-data  field name: "file"
+app.MapPost("/api/uploads", async (HttpRequest request, IWebHostEnvironment env, ILogger<Program> logger) =>
+{
+    try
+    {
+        if (!request.HasFormContentType)
+            return Results.BadRequest(new { error = "Expected multipart/form-data" });
+
+        var form = await request.ReadFormAsync();
+        var file = form.Files.GetFile("file");
+
+        if (file == null || file.Length == 0)
+            return Results.BadRequest(new { error = "No file received" });
+
+        // Guard: accept only audio files (m4a, wav, opus, mp3, webm)
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".m4a", ".wav", ".mp3", ".opus", ".webm", ".aac" };
+        if (!allowed.Contains(ext)) ext = ".m4a";   // default if unknown
+
+        // Save to wwwroot/uploads/
+        var uploadsDir = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads");
+        Directory.CreateDirectory(uploadsDir);
+
+        var uniqueId  = Guid.NewGuid().ToString("N")[..8];
+        var fileName  = $"sos_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{uniqueId}{ext}";
+        var filePath  = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream);
+
+        logger.LogInformation("Voice note uploaded: {FileName} ({Size} bytes)", fileName, file.Length);
+
+        // Build the public URL — uses the Host header so it works with adb reverse
+        var baseUrl = $"{request.Scheme}://{request.Host}";
+        var url     = $"{baseUrl}/uploads/{fileName}";
+
+        return Results.Created(url, new { url, fileName, size = file.Length });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Upload error");
+        return Results.Problem("Upload failed");
+    }
+})
+.WithName("UploadVoiceNote")
+.WithTags("SOS")
+.Accepts<IFormFile>("multipart/form-data")
+.Produces(201)
+.Produces(400)
+.DisableAntiforgery();
 
 app.Run();
 
