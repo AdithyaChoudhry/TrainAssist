@@ -35,6 +35,8 @@ class SOSScreen extends StatefulWidget {
 class _SOSScreenState extends State<SOSScreen> {
   final List<TextEditingController> _ctrls =
       List.generate(3, (_) => TextEditingController());
+    final List<TextEditingController> _emailCtrls =
+      List.generate(3, (_) => TextEditingController());
   bool _guardActive = false;
   bool _sosRunning  = false;
   final List<_LogEntry> _log = [];
@@ -63,6 +65,7 @@ class _SOSScreenState extends State<SOSScreen> {
     final prefs = await SharedPreferences.getInstance();
     for (int i = 0; i < 3; i++) {
       _ctrls[i].text = prefs.getString('sos_contact_$i') ?? '';
+      _emailCtrls[i].text = prefs.getString('sos_email_$i') ?? '';
     }
     if (mounted) setState(() {});
   }
@@ -71,6 +74,7 @@ class _SOSScreenState extends State<SOSScreen> {
     final prefs = await SharedPreferences.getInstance();
     for (int i = 0; i < 3; i++) {
       await prefs.setString('sos_contact_$i', _ctrls[i].text.trim());
+      await prefs.setString('sos_email_$i', _emailCtrls[i].text.trim());
     }
     _addLog('Contacts saved', icon: Icons.check_circle, color: Colors.green);
   }
@@ -225,25 +229,34 @@ class _SOSScreenState extends State<SOSScreen> {
   Future<void> _sendEmailAutomatic(String audioUrl, String? mapsLink) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString('sos_email') ?? '';
-      if (email.isEmpty) {
-        _addLog('No SOS email configured; skipping email send', icon: Icons.email, color: Colors.orange);
+      final emails = <String>[];
+      for (int i = 0; i < 3; i++) {
+        final e = prefs.getString('sos_email_$i')?.trim() ?? '';
+        if (e.isNotEmpty) emails.add(e);
+      }
+      if (emails.isEmpty) {
+        _addLog('No SOS email(s) configured; skipping email send', icon: Icons.email, color: Colors.orange);
         return;
       }
 
-      final payload = jsonEncode({
-        'to': email,
-        'subject': 'TrainAssist SOS Voice Note',
-        'body': 'You have received a voice note from an SOS. Location: ${mapsLink ?? "N/A"}',
-        'attachmentUrl': audioUrl,
-      });
-
       final uri = Uri.parse('${ApiConfig.baseUrl}/api/sendmail');
-      final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
-      if (res.statusCode == 200) {
-        _addLog('Voice note emailed to $email', icon: Icons.email, color: Colors.green);
-      } else {
-        _addLog('Email send failed', icon: Icons.email, color: Colors.orange);
+      for (final email in emails) {
+        try {
+          final payload = jsonEncode({
+            'to': email,
+            'subject': 'TrainAssist SOS Voice Note',
+            'body': 'You have received a voice note from an SOS. Location: ${mapsLink ?? "N/A"}',
+            'attachmentUrl': audioUrl,
+          });
+          final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
+          if (res.statusCode == 200) {
+            _addLog('Voice note emailed to $email', icon: Icons.email, color: Colors.green);
+          } else {
+            _addLog('Email send failed: $email', icon: Icons.email, color: Colors.orange);
+          }
+        } catch (e) {
+          _addLog('Email error for $email: $e', icon: Icons.email, color: Colors.red);
+        }
       }
     } catch (e) {
       _addLog('Email error: $e', icon: Icons.email, color: Colors.red);
@@ -464,6 +477,23 @@ class _SOSScreenState extends State<SOSScreen> {
                   labelText: 'Contact ${i + 1}',
                   hintText: '+91 XXXXXXXXXX',
                   prefixIcon: const Icon(Icons.phone, color: Colors.red),
+                ),
+              ),
+              if (i < 2) const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 12),
+            Text('Also email (optional):', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+            const SizedBox(height: 8),
+            for (int i = 0; i < 3; i++) ...[
+              TextField(
+                controller: _emailCtrls[i],
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: const OutlineInputBorder(),
+                  labelText: 'Email ${i + 1}',
+                  hintText: 'you@example.com',
+                  prefixIcon: const Icon(Icons.email, color: Colors.red),
                 ),
               ),
               if (i < 2) const SizedBox(height: 8),
