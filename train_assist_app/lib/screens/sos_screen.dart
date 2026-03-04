@@ -212,9 +212,14 @@ class _SOSScreenState extends State<SOSScreen> {
       final res  = await req.send().timeout(const Duration(seconds: 30));
       final body = await res.stream.bytesToString();
       if (res.statusCode == 200 || res.statusCode == 201) {
-        return (jsonDecode(body) as Map)['url'] as String?;
+        final url = (jsonDecode(body) as Map)['url'] as String?;
+        _addLog('Upload OK → $url', icon: Icons.cloud_done, color: Colors.green);
+        return url;
       }
-    } catch (_) {}
+      _addLog('Upload HTTP ${res.statusCode}: $body', icon: Icons.cloud_off, color: Colors.red);
+    } catch (e) {
+      _addLog('Upload exception: $e', icon: Icons.cloud_off, color: Colors.red);
+    }
     return null;
   }
 
@@ -258,9 +263,15 @@ class _SOSScreenState extends State<SOSScreen> {
           });
           final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
           if (res.statusCode == 200) {
-            _addLog('Voice note emailed to $email', icon: Icons.email, color: Colors.green);
+            _addLog('Voice note emailed to $email ✅', icon: Icons.email, color: Colors.green);
           } else {
-            _addLog('Email send failed: $email', icon: Icons.email, color: Colors.orange);
+            // Show the server error text so SMTP config problems are visible
+            String errDetail = res.body;
+            try {
+              final j = jsonDecode(res.body) as Map;
+              errDetail = (j['error'] ?? j['detail'] ?? j['title'] ?? res.body).toString();
+            } catch (_) {}
+            _addLog('Email ❌ ($email) HTTP ${res.statusCode}: $errDetail', icon: Icons.email, color: Colors.red);
           }
         } catch (e) {
           _addLog('Email error for $email: $e', icon: Icons.email, color: Colors.red);

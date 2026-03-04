@@ -459,76 +459,92 @@ app.MapPost("/api/uploads", async (HttpRequest request, IWebHostEnvironment env,
 .Produces(400)
 .DisableAntiforgery();
 
-// POST /api/sendmail - send an email (used to deliver the voice note automatically)
-app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, ILogger<Program> logger) =>
+// POST /api/sendmail - send an email with voice-note attachment (reads file from disk, not HTTP)
+app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, IWebHostEnvironment env, ILogger<Program> logger) =>
 {
     try
     {
+        // ── 1. Validate SMTP config ──────────────────────────────────────────
         var smtpHost = cfg["SMTP_HOST"];
         if (string.IsNullOrWhiteSpace(smtpHost))
-            return Results.BadRequest(new { error = "SMTP not configured (set SMTP_HOST)" });
+        {
+            logger.LogError("SMTP_HOST env var is not set — cannot send email");
+            return Results.BadRequest(new { error = "SMTP not configured on server. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM env vars." });
+        }
 
         var smtpPort = 587;
         int.TryParse(cfg["SMTP_PORT"], out smtpPort);
         var smtpUser = cfg["SMTP_USER"];
         var smtpPass = cfg["SMTP_PASS"];
-        var smtpFrom = cfg["SMTP_FROM"] ?? smtpUser ?? "no-reply@trainassist.local";
+        // SMTP_FROM must match an address authorized by your SMTP server
+        var smtpFrom = cfg["SMTP_FROM"] ?? smtpUser;
+        if (string.IsNullOrWhiteSpace(smtpFrom))
+        {
+            logger.LogError("SMTP_FROM (or SMTP_USER) env var not set");
+            return Results.BadRequest(new { error = "SMTP sender not configured. Set SMTP_FROM env var." });
+        }
         var enableSsl = true;
         bool.TryParse(cfg["SMTP_SSL"], out enableSsl);
 
+        logger.LogInformation("Sending SOS email → to:{To} from:{From} smtp:{Host}:{Port} ssl:{Ssl}",
+            req.To, smtpFrom, smtpHost, smtpPort, enableSsl);
+
+        // ── 2. Build message ─────────────────────────────────────────────────
         var message = new MailMessage();
-        // If caller provided a From in payload, trust it; otherwise use configured SMTP_FROM
+        message.From = new MailAddress(smtpFrom);
+        // App-supplied sender goes to Reply-To (SMTP servers reject arbitrary From)
         if (!string.IsNullOrWhiteSpace(req.From))
         {
-            try
-            {
-                message.From = new MailAddress(req.From);
-            }
-            catch
-            {
-                message.From = new MailAddress(smtpFrom);
-            }
-        }
-        else
-        {
-            message.From = new MailAddress(smtpFrom);
+            try { message.ReplyToList.Add(new MailAddress(req.From)); }
+            catch { /* ignore malformed address */ }
         }
         message.To.Add(req.To);
-        message.Subject = req.Subject ?? "TrainAssist SOS Voice Note";
-        message.Body = req.Body ?? "";
-        if (!string.IsNullOrWhiteSpace(req.AttachmentUrl))
-            message.Body += "\n\nVoice note: " + req.AttachmentUrl;
+        message.Subject = req.Subject ?? "🚨 TrainAssist SOS Voice Note";
+        message.Body = (req.Body ?? "") + (string.IsNullOrWhiteSpace(req.AttachmentUrl)
+            ? ""
+            : $"\n\nVoice note download link: {req.AttachmentUrl}");
 
-        // Try to attach the file by downloading it (best-effort)
+        // ── 3. Attach audio directly from disk (avoids self-HTTP round-trip) ─
         if (!string.IsNullOrWhiteSpace(req.AttachmentUrl))
         {
             try
             {
-                using var http = new System.Net.Http.HttpClient();
-                var bytes = await http.GetByteArrayAsync(req.AttachmentUrl);
-                var ms = new MemoryStream(bytes);
                 var fileName = Path.GetFileName(new Uri(req.AttachmentUrl).LocalPath);
-                message.Attachments.Add(new Attachment(ms, fileName));
+                var localPath = Path.Combine(env.WebRootPath ?? "wwwroot", "uploads", fileName);
+                logger.LogInformation("Attach lookup: {LocalPath} exists={Exists}", localPath, File.Exists(localPath));
+                if (File.Exists(localPath))
+                {
+                    var bytes = await File.ReadAllBytesAsync(localPath);
+                    var ms = new MemoryStream(bytes);
+                    message.Attachments.Add(new Attachment(ms, fileName));
+                    logger.LogInformation("Attached {FileName} ({Size} bytes)", fileName, bytes.Length);
+                }
+                else
+                {
+                    logger.LogWarning("Audio file not found on disk at {Path} — sending with link only", localPath);
+                }
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to attach remote file, continuing with link only");
+                logger.LogWarning(ex, "Attach failed for {Url} — sending with link only", req.AttachmentUrl);
             }
         }
 
+        // ── 4. Send via SMTP ─────────────────────────────────────────────────
         using var client = new SmtpClient(smtpHost, smtpPort);
         if (!string.IsNullOrWhiteSpace(smtpUser))
             client.Credentials = new NetworkCredential(smtpUser, smtpPass ?? "");
         client.EnableSsl = enableSsl;
 
         await client.SendMailAsync(message);
-        logger.LogInformation("Email sent to {To}", req.To);
+        logger.LogInformation("✅ Email sent to {To}", req.To);
         return Results.Ok(new { sent = true });
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Failed to send email");
-        return Results.Problem("Email failed");
+        var detail = $"{ex.Message}" + (ex.InnerException != null ? $" | Inner: {ex.InnerException.Message}" : "");
+        logger.LogError(ex, "❌ Failed to send email to {To}: {Detail}", req.To, detail);
+        return Results.Problem($"Email failed: {detail}");
     }
 })
 .WithName("SendEmail")
