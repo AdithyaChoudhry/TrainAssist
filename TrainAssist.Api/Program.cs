@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Net.Mail;
+using System.Net;
 using TrainAssist.Api.Data;
 using TrainAssist.Api.Models;
 using TrainAssist.Api.DTOs;
@@ -456,6 +458,71 @@ app.MapPost("/api/uploads", async (HttpRequest request, IWebHostEnvironment env,
 .Produces(201)
 .Produces(400)
 .DisableAntiforgery();
+
+// POST /api/sendmail - send an email (used to deliver the voice note automatically)
+app.MapPost("/api/sendmail", async (SendMailRequest req, IConfiguration cfg, ILogger<Program> logger) =>
+{
+    try
+    {
+        var smtpHost = cfg["SMTP_HOST"];
+        if (string.IsNullOrWhiteSpace(smtpHost))
+            return Results.BadRequest(new { error = "SMTP not configured (set SMTP_HOST)" });
+
+        var smtpPort = 587;
+        int.TryParse(cfg["SMTP_PORT"], out smtpPort);
+        var smtpUser = cfg["SMTP_USER"];
+        var smtpPass = cfg["SMTP_PASS"];
+        var smtpFrom = cfg["SMTP_FROM"] ?? smtpUser ?? "no-reply@trainassist.local";
+        var enableSsl = true;
+        bool.TryParse(cfg["SMTP_SSL"], out enableSsl);
+
+        var message = new MailMessage();
+        message.From = new MailAddress(smtpFrom);
+        message.To.Add(req.To);
+        message.Subject = req.Subject ?? "TrainAssist SOS Voice Note";
+        message.Body = req.Body ?? "";
+        if (!string.IsNullOrWhiteSpace(req.AttachmentUrl))
+            message.Body += "\n\nVoice note: " + req.AttachmentUrl;
+
+        // Try to attach the file by downloading it (best-effort)
+        if (!string.IsNullOrWhiteSpace(req.AttachmentUrl))
+        {
+            try
+            {
+                using var http = new System.Net.Http.HttpClient();
+                var bytes = await http.GetByteArrayAsync(req.AttachmentUrl);
+                var ms = new MemoryStream(bytes);
+                var fileName = Path.GetFileName(new Uri(req.AttachmentUrl).LocalPath);
+                message.Attachments.Add(new Attachment(ms, fileName));
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to attach remote file, continuing with link only");
+            }
+        }
+
+        using var client = new SmtpClient(smtpHost, smtpPort);
+        if (!string.IsNullOrWhiteSpace(smtpUser))
+            client.Credentials = new NetworkCredential(smtpUser, smtpPass ?? "");
+        client.EnableSsl = enableSsl;
+
+        await client.SendMailAsync(message);
+        logger.LogInformation("Email sent to {To}", req.To);
+        return Results.Ok(new { sent = true });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to send email");
+        return Results.Problem("Email failed");
+    }
+})
+.WithName("SendEmail")
+.WithTags("SOS")
+.Produces(200)
+.Produces(400);
+
+// DTO for sendmail
+public record SendMailRequest(string To, string? Subject, string? Body, string? AttachmentUrl);
 
 app.Run();
 

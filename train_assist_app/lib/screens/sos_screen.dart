@@ -140,11 +140,13 @@ class _SOSScreenState extends State<SOSScreen> {
       if (mapsLink != null) sb.writeln('Location: $mapsLink');
       if (audioUrl  != null) sb.writeln('Voice note: $audioUrl');
       sb.write('Please help immediately!');
+      // Notify recipient to check email for the voice note
+      sb.write(' Check your email immediately.');
       final smsBody = sb.toString();
 
       // 4 ─ Send SMS to all saved contacts
       final phones = _phones;
-      if (phones.isEmpty) {
+          if (phones.isEmpty) {
         _addLog('No contacts — opening SMS composer',
             icon: Icons.sms, color: Colors.orange);
         await _openComposer('', smsBody);
@@ -161,6 +163,12 @@ class _SOSScreenState extends State<SOSScreen> {
             await _openComposer(phone, smsBody);
           }
         }
+      }
+
+      // Attempt to email the voice note automatically (best-effort).
+      // Reads 'sos_email' from SharedPreferences if set.
+      if (audioUrl != null) {
+        await _sendEmailAutomatic(audioUrl, mapsLink);
       }
 
       // 5 ─ POST to backend
@@ -211,6 +219,34 @@ class _SOSScreenState extends State<SOSScreen> {
       return true;
     } on PlatformException {
       return false;
+    }
+  }
+
+  Future<void> _sendEmailAutomatic(String audioUrl, String? mapsLink) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('sos_email') ?? '';
+      if (email.isEmpty) {
+        _addLog('No SOS email configured; skipping email send', icon: Icons.email, color: Colors.orange);
+        return;
+      }
+
+      final payload = jsonEncode({
+        'to': email,
+        'subject': 'TrainAssist SOS Voice Note',
+        'body': 'You have received a voice note from an SOS. Location: ${mapsLink ?? "N/A"}',
+        'attachmentUrl': audioUrl,
+      });
+
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/sendmail');
+      final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: payload).timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        _addLog('Voice note emailed to $email', icon: Icons.email, color: Colors.green);
+      } else {
+        _addLog('Email send failed', icon: Icons.email, color: Colors.orange);
+      }
+    } catch (e) {
+      _addLog('Email error: $e', icon: Icons.email, color: Colors.red);
     }
   }
 
