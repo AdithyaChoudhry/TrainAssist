@@ -25,7 +25,7 @@ android {
         applicationId = "com.example.train_assist_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21   // flutter_blue_plus requires API 21+
+        minSdk = 23   // flutter_blue_plus ≥21; record ≥23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
