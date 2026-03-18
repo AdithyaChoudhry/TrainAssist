@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TrainAssist – Project Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&family=Arial&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Times New Roman", Times, serif; font-size: 12pt; color: #000; background: #fff; }
+
+  /* ---------- page & cover ---------- */
+  .cover {
+    page-break-after: always;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; text-align: center; padding: 60px 40px;
+  }
+  .cover h1 { font-size: 28pt; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
+  .cover h2 { font-size: 16pt; font-weight: normal; margin-bottom: 40px; color: #333; }
+  .cover .meta { font-size: 12pt; line-height: 2; }
+  .cover .logo { font-size: 60pt; margin-bottom: 20px; }
+  .cover hr { width: 60%; border: 1px solid #000; margin: 30px 0; }
+
+  /* ---------- TOC ---------- */
+  .toc { page-break-after: always; padding: 40px 60px; }
+  .toc h2 { font-size: 18pt; font-weight: bold; text-align: center; margin-bottom: 30px; text-transform: uppercase; }
+  .toc table { width: 100%; border-collapse: collapse; }
+  .toc td, .toc th { border: 1px solid #000; padding: 8px 14px; font-size: 11pt; }
+  .toc th { background: #f0f0f0; font-weight: bold; text-align: center; }
+  .toc .num { width: 12%; text-align: center; }
+
+  /* ---------- sections ---------- */
+  .section { padding: 40px 60px; page-break-before: always; }
+  h3.sec-title {
+    font-size: 16pt; font-weight: bold; text-transform: uppercase;
+    border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 20px;
+  }
+  h4 { font-size: 13pt; font-weight: bold; margin: 18px 0 8px; }
+  h5 { font-size: 12pt; font-weight: bold; margin: 14px 0 6px; }
+  p { line-height: 1.8; margin-bottom: 10px; text-align: justify; }
+  ul, ol { margin: 8px 0 12px 28px; line-height: 1.8; }
+  li { margin-bottom: 4px; }
+
+  /* ---------- table ---------- */
+  table.data { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 11pt; }
+  table.data th { background: #ddd; font-weight: bold; padding: 8px 10px; border: 1px solid #888; text-align: left; }
+  table.data td { padding: 7px 10px; border: 1px solid #888; vertical-align: top; }
+
+  /* ---------- code ---------- */
+  pre { background: #f5f5f5; border: 1px solid #ccc; padding: 12px; font-family: monospace; font-size: 9.5pt; margin: 12px 0; overflow-wrap: break-word; white-space: pre-wrap; }
+  code { font-family: monospace; font-size: 10pt; background: #f0f0f0; padding: 1px 4px; }
+
+  /* ---------- use-case box ---------- */
+  .ucd { border: 2px solid #000; padding: 20px 30px; margin: 20px 0; font-family: monospace; font-size: 10pt; line-height: 1.6; }
+
+  /* ---------- print ---------- */
+  @media print {
+    .section { page-break-before: always; }
+    pre { page-break-inside: avoid; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ COVER PAGE ═══ -->
+<div class="cover">
+  <div class="logo">🚆</div>
+  <h1>TrainAssist</h1>
+  <h2>A Smart Mobile Application for Train Passengers</h2>
+  <hr/>
+  <div class="meta">
+    <strong>Project Report</strong><br/>
+    Submitted for the Partial Fulfillment of the Requirements<br/>
+    Bachelor of Engineering / Bachelor of Technology<br/><br/>
+    <strong>Technology Stack:</strong> Flutter · ASP.NET Core · PostgreSQL<br/>
+    <strong>Platform:</strong> Android (Physical Device — Samsung Galaxy S23)<br/>
+    <strong>Date:</strong> March 2026<br/>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ TOC ═════ -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <table>
+    <tr><th class="num">Sr. No.</th><th>Chapter / Section Title</th></tr>
+    <tr><td class="num">1</td><td>Abstract</td></tr>
+    <tr><td class="num">1.1</td><td>Introduction</td></tr>
+    <tr><td class="num">1.2</td><td>Brief Overview of Technology</td></tr>
+    <tr><td class="num">1.3</td><td>Software Requirements</td></tr>
+    <tr><td class="num">2</td><td>Existing System</td></tr>
+    <tr><td class="num">3</td><td>Proposed System</td></tr>
+    <tr><td class="num">4</td><td>Use Case Diagram</td></tr>
+    <tr><td class="num">5</td><td>Domain Specification</td></tr>
+    <tr><td class="num">6</td><td>Source Code &amp; Screenshots</td></tr>
+    <tr><td class="num">7</td><td>Summary</td></tr>
+    <tr><td class="num">8</td><td>Conclusion</td></tr>
+    <tr><td class="num">9</td><td>Future Enhancement</td></tr>
+    <tr><td class="num">10</td><td>Glossary</td></tr>
+    <tr><td class="num">11</td><td>Reference</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════ 1. ABSTRACT ══════ -->
+<div class="section">
+  <h3 class="sec-title">1 &nbsp; Abstract</h3>
+  <p>
+    TrainAssist is a cross-platform mobile application developed using the Flutter framework for the front-end
+    and ASP.NET Core Minimal API with a PostgreSQL relational database for the back-end. The application
+    addresses a real and daily challenge faced by millions of train passengers: the lack of real-time, accessible
+    information about coach crowd levels, emergency reporting, lost-and-found coordination, and on-journey
+    situational awareness.
+  </p>
+  <p>
+    The system allows passengers to search for trains by source and destination, view the crowd occupancy
+    status (Low / Medium / High) of individual coaches as reported by fellow passengers, and submit their own
+    crowd updates. In emergency situations, users can trigger a full SOS flow that captures GPS location,
+    records a voice note, and dispatches alerts via SMS, WhatsApp, and Email (SMTP) to pre-configured
+    emergency contacts. Additional features include a Bluetooth-based station proximity alert, a lost-and-found
+    reporting module, a medical emergency profile accessible from the lock screen, and a rule-based on-device
+    chatbot capable of answering common passenger queries such as live train tracking, PNR status, ticket
+    cancellation, and nearest station directions.
+  </p>
+  <p>
+    The application was built and deployed as a debug APK on a physical Android 14 (API 34) device —
+    Samsung Galaxy S23 — over a Wi-Fi ADB connection. The entire stack, excluding cloud deployment, is
+    free of cost to run locally.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════════════ 1.1 INTRODUCTION ═════ -->
+<div class="section">
+  <h3 class="sec-title">1.1 &nbsp; Introduction</h3>
+  <p>
+    Rail transport continues to be one of the primary modes of long-distance and inter-city travel across much
+    of the world, particularly in countries like India where the railway network spans thousands of kilometres
+    and serves hundreds of millions of passengers annually. Despite this scale, the average passenger still lacks
+    a simple, unified digital tool to get actionable real-time information about their journey — from coach
+    crowd conditions to emergency assistance.
+  </p>
+  <p>
+    TrainAssist was conceived to bridge this gap. The application puts several safety and convenience features
+    directly in the pocket of every train passenger. By allowing passengers themselves to report crowd
+    conditions, the system creates a community-driven, real-time occupancy map. The SOS module provides a
+    multi-channel emergency alert system that operates even in partially connected environments, leveraging
+    SMS and WhatsApp which work over cellular data. The chatbot immediately answers common questions
+    without requiring an internet connection.
+  </p>
+  <p>
+    The project follows an N-tier architecture with a clear separation between:
+  </p>
+  <ul>
+    <li><strong>Presentation Layer</strong> — Flutter (Dart) mobile app targeting Android.</li>
+    <li><strong>Business / API Layer</strong> — ASP.NET Core Minimal API (.NET 10) exposing REST endpoints.</li>
+    <li><strong>Data Layer</strong> — Entity Framework Core 10 ORM connected to a PostgreSQL 15 database.</li>
+    <li><strong>On-device Intelligence</strong> — Rule-based chatbot (SimpleChatBot) running entirely offline.</li>
+  </ul>
+  <p>
+    Development adopted an iterative, prompt-driven workflow assisted by GitHub Copilot, accelerating
+    feature delivery across multiple sprint-like cycles. Each prompt document (e.g., PROMPT_2_3_COMPLETE.md,
+    PROMPT_7_8_COMPLETE.md) captures the complete implementation of a set of features.
+  </p>
+</div>
+
+<!-- ═════════════════════════════════════ 1.2 BRIEF OVERVIEW OF TECH ═══ -->
+<div class="section">
+  <h3 class="sec-title">1.2 &nbsp; Brief Overview of Technology</h3>
+
+  <h4>Flutter (Dart)</h4>
+  <p>
+    Flutter is Google's open-source UI toolkit for building natively compiled applications for mobile, web, and
+    desktop from a single codebase in the Dart programming language. The framework's widget-based
+    rendering engine provides pixel-perfect UI on Android and iOS without requiring platform bridges for most
+    components. TrainAssist uses Flutter 3.x / Dart SDK ^3.8.1 and targets Android (primary) and Chrome web
+    (secondary).
+  </p>
+
+  <h4>ASP.NET Core Minimal API (.NET 10)</h4>
+  <p>
+    Microsoft's .NET 10 platform provides a lightweight, high-performance HTTP API framework. Minimal APIs
+    use a functional, top-level statement style to define endpoints directly in <code>Program.cs</code> without
+    controllers, reducing boilerplate. Entity Framework Core 10 with Npgsql driver handles all database
+    interactions using code-first migrations.
+  </p>
+
+  <h4>PostgreSQL 15</h4>
+  <p>
+    PostgreSQL is a powerful, open-source object-relational database system known for ACID compliance, rich
+    data types, and mature tooling. The TrainAssist schema includes five tables: <code>Trains</code>,
+    <code>Coaches</code>, <code>CrowdReports</code>, <code>SOSReports</code>, and <code>Users</code>.
+    A DataSeeder class pre-populates the database with sample train and coach data on first run.
+  </p>
+
+  <h4>Provider (State Management)</h4>
+  <p>
+    The Flutter app uses the Provider package (ChangeNotifier pattern) for state management across eight
+    providers: UserProvider, TrainProvider, CoachProvider, SOSProvider, BluetoothProvider,
+    StationAlertProvider, LostFoundProvider, and MedicalProfileProvider.
+  </p>
+
+  <h4>Key Flutter Packages</h4>
+  <table class="data">
+    <tr><th>Package</th><th>Version</th><th>Purpose</th></tr>
+    <tr><td>http</td><td>^1.2.2</td><td>REST API calls and multipart file upload</td></tr>
+    <tr><td>provider</td><td>^6.1.0</td><td>State management (ChangeNotifier)</td></tr>
+    <tr><td>shared_preferences</td><td>^2.2.0</td><td>Local persistence (user name, SMTP config)</td></tr>
+    <tr><td>intl</td><td>^0.18.0</td><td>Date & time formatting</td></tr>
+    <tr><td>flutter_blue_plus</td><td>^1.35.3</td><td>BLE + Classic Bluetooth scanning</td></tr>
+    <tr><td>geolocator</td><td>^13.0.2</td><td>GPS coordinates</td></tr>
+    <tr><td>geocoding</td><td>^2.0.5</td><td>Reverse geocoding (coords → address)</td></tr>
+    <tr><td>url_launcher</td><td>^6.3.1</td><td>Open URLs, Maps, SMS, WhatsApp</td></tr>
+    <tr><td>record</td><td>^5.2.0</td><td>Voice note audio recording</td></tr>
+    <tr><td>audioplayers</td><td>^6.1.0</td><td>Voice note playback preview</td></tr>
+    <tr><td>share_plus</td><td>^10.1.4</td><td>Native share sheet (WhatsApp, SMS, Email)</td></tr>
+    <tr><td>flutter_local_notifications</td><td>^17.2.4</td><td>Persistent medical lock-screen card</td></tr>
+    <tr><td>permission_handler</td><td>^11.3.1</td><td>Runtime permission management</td></tr>
+    <tr><td>path_provider</td><td>^2.1.4</td><td>Temp directory for voice note file path</td></tr>
+  </table>
+
+  <h4>Developer Tooling</h4>
+  <ul>
+    <li>Visual Studio Code with Flutter and C# extensions</li>
+    <li>GitHub Copilot (AI-assisted development)</li>
+    <li>ADB over Wi-Fi (wireless device debugging and installation)</li>
+    <li>Swagger UI (auto-generated API documentation at <code>/swagger</code>)</li>
+    <li>Docker (optional — PostgreSQL container alternative)</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════ 1.3 SOFTWARE REQUIREMENTS ════════ -->
+<div class="section">
+  <h3 class="sec-title">1.3 &nbsp; Software Requirements</h3>
+
+  <h4>Development Environment</h4>
+  <table class="data">
+    <tr><th>Component</th><th>Minimum Version</th><th>Notes</th></tr>
+    <tr><td>Flutter SDK</td><td>3.8.1</td><td>Dart SDK ^3.8.1 included</td></tr>
+    <tr><td>.NET SDK</td><td>10.0</td><td>Required for backend API</td></tr>
+    <tr><td>PostgreSQL</td><td>15</td><td>Local or Docker instance</td></tr>
+    <tr><td>Android Studio / SDK</td><td>API 21+</td><td>For build tools (no emulator needed)</td></tr>
+    <tr><td>Visual Studio Code</td><td>Latest</td><td>Recommended IDE</td></tr>
+    <tr><td>Node.js</td><td>18+</td><td>Optional — for tooling scripts</td></tr>
+    <tr><td>macOS / Linux / Windows</td><td>Any modern</td><td>All platforms supported for development</td></tr>
+  </table>
+
+  <h4>Target Runtime</h4>
+  <table class="data">
+    <tr><th>Component</th><th>Specification</th></tr>
+    <tr><td>Mobile OS</td><td>Android 5.0 (API 21) or later; tested on Android 14 (API 34)</td></tr>
+    <tr><td>Backend hosting</td><td>Any machine running .NET 10 runtime; locally on port 5000</td></tr>
+    <tr><td>Database</td><td>PostgreSQL 15 accessible via connection string in appsettings.json</td></tr>
+  </table>
+
+  <h4>Hardware Requirements</h4>
+  <ul>
+    <li>Android physical device (Samsung Galaxy S23 used in testing) or Android emulator</li>
+    <li>Bluetooth 4.0+ for station proximity alert feature</li>
+    <li>GPS sensor for location services</li>
+    <li>Microphone for SOS voice note recording</li>
+    <li>Internet connection (Wi-Fi or cellular) for API calls; chatbot works offline</li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════ 2. EXISTING SYSTEM ═══════ -->
+<div class="section">
+  <h3 class="sec-title">2 &nbsp; Existing System</h3>
+  <p>
+    Several applications and platforms currently offer partial solutions for train passengers. An analysis of
+    the existing landscape reveals significant gaps that TrainAssist aims to address:
+  </p>
+
+  <h4>National Train Enquiry System (NTES – ntes.in)</h4>
+  <p>
+    NTES provides official live running status for all Indian Railways trains. However, it is a web portal
+    without a companion mobile application offering integrated safety features. It does not provide crowd
+    reporting, SOS alerts, or offline capabilities.
+  </p>
+
+  <h4>RailYatri / ixigo</h4>
+  <p>
+    These third-party platforms offer train status, PNR checking, and ticket booking. Neither provides a
+    community-driven real-time coach occupancy system or a one-tap SOS emergency alert that integrates
+    GPS, voice recording, SMS, and WhatsApp simultaneously.
+  </p>
+
+  <h4>IRCTC Official App</h4>
+  <p>
+    IRCTC is the official ticketing platform. Its scope is limited to booking and cancellation; it does not
+    address on-journey safety, crowd conditions, or emergency response.
+  </p>
+
+  <h4>General Limitations of Existing Systems</h4>
+  <ul>
+    <li>No real-time community-driven coach crowd reporting.</li>
+    <li>No integrated multi-channel SOS (SMS + WhatsApp + Email + Voice Note).</li>
+    <li>No Bluetooth-based station proximity and wake-up alert.</li>
+    <li>No on-device offline chatbot answering train-related queries.</li>
+    <li>No lost-and-found coordination within the journey context.</li>
+    <li>No medical emergency profile stored on the device for first-responders to access.</li>
+    <li>No single app combining all the above in a unified, privacy-first, open-source stack.</li>
+  </ul>
+
+  <h4>Disadvantages of the Existing System</h4>
+  <ol>
+    <li>Fragmented experience — passengers must switch between multiple apps.</li>
+    <li>Most features require internet connectivity at all times.</li>
+    <li>No personalised emergency configuration (contacts, SMTP, WhatsApp).</li>
+    <li>SOS communication relies on phone calls only; no automated multi-channel dispatch.</li>
+    <li>Privacy concerns with large commercial platforms handling location data.</li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════ 3. PROPOSED SYSTEM ═══════ -->
+<div class="section">
+  <h3 class="sec-title">3 &nbsp; Proposed System</h3>
+  <p>
+    TrainAssist proposes a unified, open-source mobile application that consolidates all passenger safety and
+    convenience features under a single interface, with a lightweight REST API backend and an on-device
+    chatbot that works offline.
+  </p>
+
+  <h4>Key Features of the Proposed System</h4>
+
+  <h5>3.1 Train Search and Coach Crowd Status</h5>
+  <ul>
+    <li>Search trains by source and/or destination station name (partial match supported).</li>
+    <li>View all coaches for a train with the latest crowd status: Low 🟢, Medium 🟡, or High 🔴.</li>
+    <li>Submit a new crowd report for any coach — persisted in PostgreSQL via the REST API.</li>
+    <li>Crowd data is timestamped; the most recent report is always displayed.</li>
+  </ul>
+
+  <h5>3.2 SOS Emergency Alert System</h5>
+  <ul>
+    <li>One-tap SOS trigger, or triple-tap screen gesture, or Volume-UP ×3 (Guard Mode).</li>
+    <li>Captures GPS coordinates with reverse geocoding to a human-readable address.</li>
+    <li>Records a voice note (M4A/WAV/Opus) and uploads it to the backend's <code>/api/uploads</code> endpoint.</li>
+    <li>Sends the SOS record (name, train, coach, GPS, message) to the backend <code>/api/sos</code>.</li>
+    <li>Dispatches SMS to all saved emergency contacts using the native SMS composer.</li>
+    <li>Opens WhatsApp with a prefilled SOS message for each contact (optional auto-send via Accessibility service).</li>
+    <li>Sends an email with the voice note attached via SMTP (configurable host, port, credentials).</li>
+  </ul>
+
+  <h5>3.3 Bluetooth Station Proximity Alert</h5>
+  <ul>
+    <li>User configures a target station name and scans for nearby Bluetooth beacons.</li>
+    <li>When a beacon matching the station name is detected, a high-priority full-screen notification is fired.</li>
+    <li>Prevents passengers from sleeping through their stop on long-distance journeys.</li>
+  </ul>
+
+  <h5>3.4 Lost and Found</h5>
+  <ul>
+    <li>Passengers can report lost or found items specifying description, location, and contact info.</li>
+    <li>The app automatically matches lost reports with found reports and notifies both parties.</li>
+    <li>Entirely local/on-device storage (SharedPreferences); no backend dependency.</li>
+  </ul>
+
+  <h5>3.5 Medical Emergency Profile</h5>
+  <ul>
+    <li>Users enter their blood group, allergies, medical conditions, and emergency contact.</li>
+    <li>A persistent, high-priority lock-screen notification (via <code>flutter_local_notifications</code>) keeps the medical card accessible at all times — critical when a passenger is unconscious.</li>
+  </ul>
+
+  <h5>3.6 On-Device Chatbot</h5>
+  <ul>
+    <li>Rule-based bot (<code>SimpleChatBot</code>) runs entirely offline — no AI API costs.</li>
+    <li>Handles: live train tracking links, ETA, PNR status, ticket cancellation/refund, nearest station, SOS flow, helpline numbers (139 / 182), crowd reporting guide, WhatsApp setup, and SMTP configuration.</li>
+    <li>Returns tappable links opening the appropriate page in the browser or Google Maps.</li>
+  </ul>
+
+  <h5>3.7 REST API and Swagger</h5>
+  <ul>
+    <li>ASP.NET Core Minimal API exposes fully documented endpoints at <code>/swagger</code>.</li>
+    <li>Endpoints: GET /api/trains, GET /api/trains/{id}/coaches, POST /api/coaches/{id}/crowd, POST /api/sos, GET /api/sos, POST /api/uploads, POST /api/sendmail, GET /api/trains/{num}/links, GET /api/health.</li>
+  </ul>
+
+  <h4>Advantages of the Proposed System</h4>
+  <ol>
+    <li>Single unified app replacing five or more separate tools.</li>
+    <li>Community-driven real-time crowd data with no external API dependency.</li>
+    <li>Multi-channel SOS that works independently of phone call availability.</li>
+    <li>Offline chatbot answers common questions without internet.</li>
+    <li>Open-source, self-hosted — no subscription or usage fees.</li>
+    <li>Medical card always visible on lock screen — aids first-responders.</li>
+    <li>Bluetooth station alert eliminates missed-stop anxiety on overnight trains.</li>
+  </ol>
+</div>
+
+<!-- ══════════════════════════════════════════ 4. USE CASE DIAGRAM ══════ -->
+<div class="section">
+  <h3 class="sec-title">4 &nbsp; Use Case Diagram</h3>
+  <p>
+    The following textual representation describes the main actors and use cases of the TrainAssist system
+    (a formal UML diagram would be rendered in a drawing tool such as draw.io or PlantUML for the final submission).
+  </p>
+
+  <div class="ucd">
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          TrainAssist System                               │
+│                                                                          │
+│  ┌──────────┐                                                            │
+│  │          │──── Search Train ──────────────────────────────────────►  │
+│  │          │──── View Coach Crowd Status ───────────────────────────►  │
+│  │          │──── Report Coach Crowd ────────────────────────────────►  │
+│  │          │──── Trigger SOS ───────────────────────────────────────►  │
+│  │ Passenger│      └── Capture GPS ──────────────────────────────────►  │
+│  │  (User)  │      └── Record Voice Note ────────────────────────────►  │
+│  │          │      └── Send SMS / WhatsApp / Email ─────────────────►   │
+│  │          │──── Set Station Alert (Bluetooth) ─────────────────────►  │
+│  │          │──── Report Lost / Found Item ──────────────────────────►  │
+│  │          │──── View / Edit Medical Profile ───────────────────────►  │
+│  │          │──── Ask Chatbot (offline) ─────────────────────────────►  │
+│  └──────────┘                                                            │
+│                                                                          │
+│  ┌──────────────┐                                                        │
+│  │   Backend    │◄─── Submit crowd report ──── &lt;&lt;include&gt;&gt; ─── Report Coach │
+│  │  REST API    │◄─── Submit SOS report ──── &lt;&lt;include&gt;&gt; ─── Trigger SOS   │
+│  │  (ASP.NET)   │◄─── Upload voice note ─── &lt;&lt;include&gt;&gt; ─── Record VN    │
+│  │              │◄─── Send email ─────────── &lt;&lt;include&gt;&gt; ─── SOS Email   │
+│  └──────┬───────┘                                                        │
+│         │                                                                │
+│  ┌──────▼───────┐                                                        │
+│  │  PostgreSQL  │                                                        │
+│  │   Database   │                                                        │
+│  └──────────────┘                                                        │
+│                                                                          │
+│  ┌─────────────┐                                                         │
+│  │  Emergency  │◄─── Receives SMS / WhatsApp / Email from SOS           │
+│  │  Contacts   │                                                         │
+│  └─────────────┘                                                         │
+└──────────────────────────────────────────────────────────────────────────┘
+  </div>
+
+  <h4>Use Case Descriptions</h4>
+  <table class="data">
+    <tr><th>Use Case</th><th>Actor</th><th>Description</th></tr>
+    <tr><td>Search Train</td><td>Passenger</td><td>Search trains by source/destination; results fetched from API</td></tr>
+    <tr><td>View Coach Crowd</td><td>Passenger</td><td>View latest crowd status (Low/Medium/High) per coach</td></tr>
+    <tr><td>Report Crowd</td><td>Passenger</td><td>Submit a new crowd report saved via POST /api/coaches/{id}/crowd</td></tr>
+    <tr><td>Trigger SOS</td><td>Passenger</td><td>Captures GPS, records voice, dispatches multi-channel alert</td></tr>
+    <tr><td>Station Alert</td><td>Passenger</td><td>Bluetooth scan triggers notification when target station is near</td></tr>
+    <tr><td>Lost &amp; Found</td><td>Passenger</td><td>Submit lost/found reports; auto-match by description keywords</td></tr>
+    <tr><td>Medical Profile</td><td>Passenger</td><td>Edit and persist medical info shown on lock screen</td></tr>
+    <tr><td>Ask Chatbot</td><td>Passenger</td><td>Offline Q&amp;A for train tracking, PNR, SOS guidance, etc.</td></tr>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════ 5. DOMAIN SPECIFICATION ══════════ -->
+<div class="section">
+  <h3 class="sec-title">5 &nbsp; Domain Specification</h3>
+
+  <h4>Application Domain</h4>
+  <p>
+    TrainAssist operates within the <strong>railway passenger assistance</strong> domain, intersecting
+    public transportation, personal safety, and community informatics. The primary users are rail passengers
+    who need real-time situational awareness and emergency support during their journey.
+  </p>
+
+  <h4>Data Models</h4>
+
+  <h5>Train</h5>
+  <table class="data">
+    <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+    <tr><td>Id</td><td>int</td><td>PK, auto-increment</td><td>Unique identifier</td></tr>
+    <tr><td>TrainName</td><td>string(100)</td><td>Required</td><td>Name of the train</td></tr>
+    <tr><td>Source</td><td>string(100)</td><td>Required</td><td>Origin station</td></tr>
+    <tr><td>Destination</td><td>string(100)</td><td>Required</td><td>Destination station</td></tr>
+    <tr><td>Timing</td><td>string(10)</td><td>Required</td><td>Departure time (HH:mm)</td></tr>
+    <tr><td>Platform</td><td>string(10)</td><td>Optional</td><td>Platform number</td></tr>
+  </table>
+
+  <h5>Coach</h5>
+  <table class="data">
+    <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+    <tr><td>Id</td><td>int</td><td>PK</td><td>Unique identifier</td></tr>
+    <tr><td>TrainId</td><td>int</td><td>FK → Train</td><td>Parent train reference</td></tr>
+    <tr><td>CoachName</td><td>string</td><td>Required</td><td>e.g., "S1", "B2", "General"</td></tr>
+  </table>
+
+  <h5>CrowdReport</h5>
+  <table class="data">
+    <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+    <tr><td>Id</td><td>int</td><td>PK</td><td>Unique identifier</td></tr>
+    <tr><td>CoachId</td><td>int</td><td>FK → Coach</td><td>Coach being reported</td></tr>
+    <tr><td>ReporterName</td><td>string(100)</td><td>Required</td><td>Name of the submitting passenger</td></tr>
+    <tr><td>Status</td><td>string(20)</td><td>Low/Medium/High</td><td>Crowd level</td></tr>
+    <tr><td>Timestamp</td><td>DateTime</td><td>UTC</td><td>Time of report submission</td></tr>
+  </table>
+
+  <h5>SOSReport</h5>
+  <table class="data">
+    <tr><th>Field</th><th>Type</th><th>Constraint</th><th>Description</th></tr>
+    <tr><td>Id</td><td>int</td><td>PK</td><td>Unique identifier</td></tr>
+    <tr><td>ReporterName</td><td>string(100)</td><td>Required</td><td>Name of the passenger in distress</td></tr>
+    <tr><td>TrainId</td><td>int?</td><td>FK (optional)</td><td>Train at time of SOS</td></tr>
+    <tr><td>CoachId</td><td>int?</td><td>FK (optional)</td><td>Coach at time of SOS</td></tr>
+    <tr><td>Latitude</td><td>double?</td><td>GPS</td><td>Latitude coordinate</td></tr>
+    <tr><td>Longitude</td><td>double?</td><td>GPS</td><td>Longitude coordinate</td></tr>
+    <tr><td>Message</td><td>string(500)</td><td>Optional</td><td>Custom SOS message</td></tr>
+    <tr><td>Timestamp</td><td>DateTime</td><td>UTC</td><td>Time of SOS dispatch</td></tr>
+  </table>
+
+  <h4>API Endpoint Specification</h4>
+  <table class="data">
+    <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+    <tr><td>GET</td><td>/api/health</td><td>Health check — returns status + timestamp</td></tr>
+    <tr><td>GET</td><td>/api/trains?source=&amp;destination=</td><td>Search trains by station</td></tr>
+    <tr><td>GET</td><td>/api/trains/{trainId}/coaches</td><td>Get coaches + latest crowd status</td></tr>
+    <tr><td>GET</td><td>/api/trains/{num}/links?date=</td><td>Get live tracking links for a train</td></tr>
+    <tr><td>POST</td><td>/api/coaches/{coachId}/crowd</td><td>Submit a crowd report</td></tr>
+    <tr><td>POST</td><td>/api/sos</td><td>Submit an SOS emergency report</td></tr>
+    <tr><td>GET</td><td>/api/sos</td><td>Retrieve recent SOS reports (last 50)</td></tr>
+    <tr><td>POST</td><td>/api/uploads</td><td>Upload voice note audio file (multipart)</td></tr>
+    <tr><td>POST</td><td>/api/sendmail</td><td>Send SOS email with voice note attachment</td></tr>
+  </table>
+
+  <h4>State Management Architecture</h4>
+  <p>
+    The Flutter app uses the <strong>Provider</strong> pattern (ChangeNotifier) with eight dedicated providers
+    registered at the root of the widget tree in <code>main.dart</code>. Each provider owns its slice of
+    application state and exposes methods that trigger HTTP calls to the backend API.
+  </p>
+  <table class="data">
+    <tr><th>Provider</th><th>Responsibility</th></tr>
+    <tr><td>UserProvider</td><td>Persists and exposes the logged-in user name via SharedPreferences</td></tr>
+    <tr><td>TrainProvider</td><td>Train search results fetched from GET /api/trains</td></tr>
+    <tr><td>CoachProvider</td><td>Coach list and crowd reports for a selected train</td></tr>
+    <tr><td>SOSProvider</td><td>SOS report submission, voice note recording, GPS capture, SMS/email dispatch</td></tr>
+    <tr><td>BluetoothProvider</td><td>BLE scan, station name matching via flutter_blue_plus</td></tr>
+    <tr><td>StationAlertProvider</td><td>Alert trigger logic; fires global dialog and notification on match</td></tr>
+    <tr><td>LostFoundProvider</td><td>Local CRUD for lost/found items; keyword-based auto-matching</td></tr>
+    <tr><td>MedicalProfileProvider</td><td>Medical profile storage; triggers persistent lock-screen notification</td></tr>
+  </table>
+</div>
+
+<!-- ════════════════════════════ 6. SOURCE CODE & SCREENSHOTS ════════════ -->
+<div class="section">
+  <h3 class="sec-title">6 &nbsp; Source Code &amp; Screenshots</h3>
+  <p>
+    The following key source code excerpts illustrate the core modules of TrainAssist. The complete codebase
+    is organised under the workspace root <code>/TrainAssist/</code>.
+  </p>
+
+  <h4>6.1 Project Structure</h4>
+  <pre>TrainAssist/
+├── TrainAssist.Api/               ← ASP.NET Core backend
+│   ├── Program.cs                 ← All API endpoints (Minimal API style)
+│   ├── Data/
+│   │   ├── AppDbContext.cs        ← EF Core DbContext
+│   │   └── DataSeeder.cs         ← Initial train/coach seed data
+│   ├── Models/                    ← Train, Coach, CrowdReport, SOSReport, User
+│   ├── DTOs/                      ← Request/Response data transfer objects
+│   └── Migrations/               ← EF Core migrations
+│
+└── train_assist_app/              ← Flutter frontend
+    └── lib/
+        ├── main.dart              ← App entrypoint, providers, routes
+        ├── config/
+        │   └── api_config.dart    ← Base URL, endpoint constants
+        ├── models/                ← Dart POJOs (Train, Coach, SOSReport, etc.)
+        ├── providers/             ← 8 ChangeNotifier providers
+        ├── screens/               ← All UI screens
+        │   ├── search_screen.dart
+        │   ├── coach_list_screen.dart
+        │   ├── sos_screen.dart
+        │   ├── local_chat.dart    ← Chat UI
+        │   ├── chatbot_screen.dart← Train finder chatbot UI
+        │   ├── station_alert_screen.dart
+        │   ├── lost_found_screen.dart
+        │   └── medical_profile_screen.dart
+        ├── services/
+        │   ├── api_service.dart
+        │   ├── simple_chat_bot.dart ← Rule-based offline chatbot logic
+        │   ├── chatbot_service.dart ← Train links fetcher (API + fallback)
+        │   ├── faq_service.dart    ← FAQ items for chatbot UI
+        │   ├── bluetooth_service.dart
+        │   ├── location_service.dart
+        │   └── notification_service.dart
+        └── widgets/               ← Reusable UI components</pre>
+
+  <h4>6.2 Backend — Train Links Endpoint (Program.cs excerpt)</h4>
+  <pre>app.MapGet("/api/trains/{trainNumber}/links",
+    (string trainNumber, string? date, HttpRequest request, ILogger&lt;Program&gt; logger) =&gt;
+{
+    var baseUrl = $"{request.Scheme}://{request.Host}";
+    var dt = string.IsNullOrWhiteSpace(date)
+        ? DateTime.UtcNow.ToString("yyyy-MM-dd") : date;
+
+    var links = new[]
+    {
+        new { title = "NTES live train running status",
+              url = "https://www.ntes.in/" },
+        new { title = "RailYatri live tracker",
+              url = $"https://www.railyatri.in/live-train-status?train_num={trainNumber}" },
+        new { title = "ixigo train status",
+              url = $"https://www.ixigo.com/train-tracking/{trainNumber}/train-status" },
+        new { title = "Google: train status",
+              url = $"https://www.google.com/search?q=Train+{trainNumber}+status+{dt}" },
+        new { title = "Rail Madad helpline / complaint",
+              url = "https://railmadad.indianrailways.gov.in/" }
+    };
+    return Results.Ok(new { trainNumber, date = dt, links });
+});</pre>
+
+  <h4>6.3 Flutter — SimpleChatBot (offline intent routing)</h4>
+  <pre>static BotReply reply(String message) {
+  final m = message.trim().toLowerCase();
+
+  if (m.contains('where is my train') || m.contains('live status')) {
+    return const BotReply(
+      "Here are the best free sites to track your train live:",
+      links: [
+        BotLink('NTES — Official live running status', 'https://www.ntes.in/'),
+        BotLink('RailYatri live tracker',
+                'https://www.railyatri.in/live-train-status'),
+        BotLink('ixigo train status', 'https://www.ixigo.com/trains'),
+        BotLink('Google Maps: stations near me',
+                'https://www.google.com/maps/search/railway+station+near+me'),
+      ]);
+  }
+
+  if (m.contains('pnr')) {
+    return const BotReply(
+      "Check your 10-digit PNR status here:",
+      links: [
+        BotLink('IRCTC PNR status', 'https://www.irctc.co.in/'),
+        BotLink('NTES PNR enquiry',
+                'https://www.indianrail.gov.in/enquiry/PNRSTAT/PNRStatEnquiry.html'),
+      ]);
+  }
+  // ... more intents ...
+}</pre>
+
+  <h4>6.4 Database Schema (Entity Framework Code-First)</h4>
+  <pre>// AppDbContext.cs
+public class AppDbContext : DbContext {
+    public DbSet&lt;Train&gt;       Trains       { get; set; }
+    public DbSet&lt;Coach&gt;       Coaches      { get; set; }
+    public DbSet&lt;CrowdReport&gt; CrowdReports { get; set; }
+    public DbSet&lt;SOSReport&gt;   SOSReports   { get; set; }
+    public DbSet&lt;User&gt;        Users        { get; set; }
+}</pre>
+
+  <h4>6.5 SOS Flow (Provider)</h4>
+  <pre>// SOSProvider — simplified flow
+async Task triggerSOS() {
+  position = await LocationService.getCurrentLocation();
+  voiceNoteUrl = await _recordAndUpload();
+  await _submitSOSReport(position, voiceNoteUrl);
+  await _sendSMSToContacts(position);
+  await _openWhatsAppForContacts(position);
+  await _sendEmailWithVoiceNote(position, voiceNoteUrl);
+}</pre>
+
+  <p style="margin-top:16px;">
+    <em>Note: Screenshots of the running application (Search screen, SOS screen, Chatbot, Station Alert,
+    Lost &amp; Found, Medical Profile) would be inserted here in the final printed version. Screens can be
+    captured from the installed APK on the Samsung Galaxy S23 device.</em>
+  </p>
+</div>
+
+<!-- ════════════════════════════════════════════════ 7. SUMMARY ══════════ -->
+<div class="section">
+  <h3 class="sec-title">7 &nbsp; Summary</h3>
+  <p>
+    TrainAssist is a feature-rich, production-quality mobile application that addresses the real daily needs
+    of train passengers through a carefully chosen technology stack. The project demonstrates:
+  </p>
+  <ul>
+    <li><strong>Full-stack development</strong> — Flutter/Dart mobile app + ASP.NET Core REST API + PostgreSQL.</li>
+    <li><strong>State management</strong> — Provider pattern with eight domain-specific ChangeNotifier classes.</li>
+    <li><strong>Sensor integration</strong> — GPS (geolocator), Bluetooth (flutter_blue_plus), microphone (record).</li>
+    <li><strong>Multi-channel communication</strong> — SMS, WhatsApp (url_launcher), Email (SMTP via backend).</li>
+    <li><strong>Offline-first design</strong> — Chatbot, medical profile, and lost/found operate without internet.</li>
+    <li><strong>Security</strong> — CORS configured for development; input sanitised before DB writes; no SQL injection via EF Core parameterised queries; audio uploads restricted to known MIME types.</li>
+    <li><strong>Community data</strong> — Crowd reports aggregate passenger feedback into real-time coach occupancy.</li>
+    <li><strong>AI-assisted development</strong> — GitHub Copilot accelerated feature development across all modules.</li>
+  </ul>
+  <p>
+    The application was successfully built, installed, and tested on a physical Android 14 device via
+    wireless ADB. All major features — train search, crowd reporting, SOS dispatch (SMS, WhatsApp, email),
+    Bluetooth station alert, lost-and-found, medical profile, and the chatbot — are functional.
+  </p>
+</div>
+
+<!-- ════════════════════════════════════════════════ 8. CONCLUSION ═══════ -->
+<div class="section">
+  <h3 class="sec-title">8 &nbsp; Conclusion</h3>
+  <p>
+    The TrainAssist project successfully demonstrates how a small, focused mobile application can meaningfully
+    improve the travel experience and safety of train passengers. By combining community-sourced data
+    (crowd reports), device sensors (GPS, Bluetooth, microphone), multiple communication channels
+    (SMS, WhatsApp, email), and an offline-capable intelligent assistant (rule-based chatbot), the application
+    provides value that no single existing platform currently offers.
+  </p>
+  <p>
+    The choice of Flutter ensures a single Dart codebase that targets both Android and web without
+    duplication of effort. The ASP.NET Core Minimal API provides a lightweight yet production-capable
+    backend that supports Swagger documentation out-of-the-box. PostgreSQL offers a robust, free, and
+    well-understood data store with strong ACID guarantees.
+  </p>
+  <p>
+    The iterative, AI-assisted development workflow — using GitHub Copilot with structured prompt documents —
+    proved highly effective in accelerating feature delivery while maintaining code quality and architectural
+    consistency. Each major feature set was delivered as a discrete, reviewable increment tracked in dedicated
+    completion documents.
+  </p>
+  <p>
+    In conclusion, TrainAssist meets and exceeds its initial requirements. It is ready for further development
+    toward public release, with a clear roadmap of enhancements outlined in the next section.
+  </p>
+</div>
+
+<!-- ══════════════════════════════════════ 9. FUTURE ENHANCEMENT ════════ -->
+<div class="section">
+  <h3 class="sec-title">9 &nbsp; Future Enhancement</h3>
+
+  <ol>
+    <li>
+      <strong>Real-time push notifications</strong> — Integrate Firebase Cloud Messaging (FCM) to push crowd
+      alerts and SOS acknowledgements to devices without requiring the app to be open.
+    </li>
+    <li>
+      <strong>AI-powered chatbot upgrade</strong> — Replace the rule-based <code>SimpleChatBot</code> with
+      a small on-device ML model (e.g., TensorFlow Lite) or integrate with an LLM API to handle free-form
+      natural language queries beyond keyword matching.
+    </li>
+    <li>
+      <strong>Live train GPS tracking</strong> — Subscribe to official API feeds (NTES/RailYatri) or crowd-source
+      GPS pings from passengers to render a live train position on a map within the app.
+    </li>
+    <li>
+      <strong>Authentication and user accounts</strong> — Add OAuth 2.0 / JWT-based authentication so
+      crowd reports and SOS records are tied to verified users, enabling gamification and accountability.
+    </li>
+    <li>
+      <strong>iOS support</strong> — Complete the iOS configuration (runner signing, permission plist entries)
+      to publish on the Apple App Store alongside Android.
+    </li>
+    <li>
+      <strong>Cloud deployment</strong> — Deploy the ASP.NET Core API and PostgreSQL to a managed cloud
+      platform (Azure / AWS / Railway.app) so the app functions for users across the country without a local server.
+    </li>
+    <li>
+      <strong>Offline crowd data caching</strong> — Cache the latest crowd reports locally so users can view
+      coach occupancy even without an internet connection.
+    </li>
+    <li>
+      <strong>Wearable integration</strong> — Extend SOS trigger to paired smartwatches (using Wear OS APIs)
+      for even faster emergency dispatch.
+    </li>
+    <li>
+      <strong>Accessibility features</strong> — Add voice-over support, large-text mode, and high-contrast
+      themes for visually impaired passengers.
+    </li>
+    <li>
+      <strong>Multi-language support</strong> — Add Hindi, Tamil, Telugu, and other regional language
+      localisation using Flutter's <code>intl</code> and ARB-based localisation system.
+    </li>
+  </ol>
+</div>
+
+<!-- ════════════════════════════════════════════════ 10. GLOSSARY ════════ -->
+<div class="section">
+  <h3 class="sec-title">10 &nbsp; Glossary</h3>
+  <table class="data">
+    <tr><th>Term / Abbreviation</th><th>Definition</th></tr>
+    <tr><td>ADB</td><td>Android Debug Bridge — command-line tool to communicate with Android devices</td></tr>
+    <tr><td>APK</td><td>Android Package Kit — installable Android application file format</td></tr>
+    <tr><td>API</td><td>Application Programming Interface</td></tr>
+    <tr><td>ASP.NET Core</td><td>Cross-platform, high-performance framework for building web APIs by Microsoft</td></tr>
+    <tr><td>BLE</td><td>Bluetooth Low Energy — low-power wireless communication standard</td></tr>
+    <tr><td>CORS</td><td>Cross-Origin Resource Sharing — HTTP mechanism controlling cross-origin requests</td></tr>
+    <tr><td>Dart</td><td>Client-optimised programming language used by Flutter</td></tr>
+    <tr><td>DTO</td><td>Data Transfer Object — object carrying data between layers without business logic</td></tr>
+    <tr><td>EF Core</td><td>Entity Framework Core — .NET ORM for database access</td></tr>
+    <tr><td>FCM</td><td>Firebase Cloud Messaging — push notification service by Google</td></tr>
+    <tr><td>Flutter</td><td>Google's open-source UI toolkit for cross-platform app development</td></tr>
+    <tr><td>GPS</td><td>Global Positioning System — satellite-based location service</td></tr>
+    <tr><td>IRCTC</td><td>Indian Railway Catering and Tourism Corporation — official booking platform</td></tr>
+    <tr><td>JWT</td><td>JSON Web Token — compact, URL-safe access token format</td></tr>
+    <tr><td>NTES</td><td>National Train Enquiry System — official Indian Railways live status portal</td></tr>
+    <tr><td>ORM</td><td>Object-Relational Mapping — technique for converting between OO objects and DB records</td></tr>
+    <tr><td>PNR</td><td>Passenger Name Record — 10-digit booking reference number</td></tr>
+    <tr><td>PostgreSQL</td><td>Open-source object-relational database management system</td></tr>
+    <tr><td>Provider</td><td>Flutter state management package based on InheritedWidget and ChangeNotifier</td></tr>
+    <tr><td>REST</td><td>Representational State Transfer — architectural style for web services</td></tr>
+    <tr><td>SDK</td><td>Software Development Kit</td></tr>
+    <tr><td>SMTP</td><td>Simple Mail Transfer Protocol — email sending protocol</td></tr>
+    <tr><td>SOS</td><td>International distress signal; used in this app to denote emergency alert</td></tr>
+    <tr><td>Swagger</td><td>OpenAPI specification tooling providing interactive API documentation</td></tr>
+    <tr><td>UI/UX</td><td>User Interface / User Experience</td></tr>
+    <tr><td>UTC</td><td>Coordinated Universal Time — timezone-independent timestamp standard</td></tr>
+    <tr><td>WhatsApp</td><td>Meta's cross-platform messaging application, used for SOS dispatch</td></tr>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════ 11. REFERENCE ═══════ -->
+<div class="section">
+  <h3 class="sec-title">11 &nbsp; Reference</h3>
+  <ol>
+    <li>Flutter — Official Documentation. Google LLC. <em>https://flutter.dev/docs</em></li>
+    <li>Dart Programming Language — Official Documentation. Google LLC. <em>https://dart.dev/guides</em></li>
+    <li>ASP.NET Core Documentation — Microsoft. <em>https://learn.microsoft.com/en-us/aspnet/core</em></li>
+    <li>Entity Framework Core — Microsoft. <em>https://learn.microsoft.com/en-us/ef/core</em></li>
+    <li>PostgreSQL 15 — Official Documentation. The PostgreSQL Global Development Group. <em>https://www.postgresql.org/docs/15/</em></li>
+    <li>Provider Package — pub.dev. Remi Rousselet. <em>https://pub.dev/packages/provider</em></li>
+    <li>flutter_blue_plus Package — pub.dev. <em>https://pub.dev/packages/flutter_blue_plus</em></li>
+    <li>geolocator Package — pub.dev. Baseflow. <em>https://pub.dev/packages/geolocator</em></li>
+    <li>url_launcher Package — pub.dev. Flutter Team. <em>https://pub.dev/packages/url_launcher</em></li>
+    <li>record Package — pub.dev. <em>https://pub.dev/packages/record</em></li>
+    <li>National Train Enquiry System (NTES). Ministry of Railways, Government of India. <em>https://www.ntes.in/</em></li>
+    <li>RailYatri Live Train Tracker. RailYatri.in. <em>https://www.railyatri.in/</em></li>
+    <li>ixigo Trains. Le Travenues Technology Ltd. <em>https://www.ixigo.com/trains</em></li>
+    <li>Rail Madad Complaint Portal. Indian Railways. <em>https://railmadad.indianrailways.gov.in/</em></li>
+    <li>IRCTC — Indian Railway Catering &amp; Tourism Corp. <em>https://www.irctc.co.in/</em></li>
+    <li>Swagger / OpenAPI Specification. SmartBear Software. <em>https://swagger.io/specification/</em></li>
+    <li>GitHub Copilot — AI pair programming tool. GitHub Inc. <em>https://github.com/features/copilot</em></li>
+    <li>Npgsql — .NET data provider for PostgreSQL. Npgsql Contributors. <em>https://www.npgsql.org/</em></li>
+    <li>flutter_local_notifications Package — pub.dev. MaikuB. <em>https://pub.dev/packages/flutter_local_notifications</em></li>
+    <li>share_plus Package — pub.dev. Flutter Community. <em>https://pub.dev/packages/share_plus</em></li>
+  </ol>
+</div>
+
+</body>
+</html>

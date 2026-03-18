@@ -15,6 +15,7 @@ import 'screens/sos_screen.dart';
 import 'screens/station_alert_screen.dart';
 import 'screens/lost_found_screen.dart';
 import 'screens/medical_profile_screen.dart';
+import 'screens/chatbot_screen.dart';
 import 'services/notification_service.dart';
 
 void main() {
@@ -210,6 +211,7 @@ class _AppContentState extends State<_AppContent> {
         '/station-alert': (context) => const StationAlertScreen(),
         '/lost-found': (context) => const LostFoundScreen(),
         '/medical-profile': (context) => const MedicalProfileScreen(),
+        '/chatbot': (context) => const ChatbotScreen(),
       },
     );
   }

@@ -211,6 +211,33 @@ app.MapGet("/api/trains/{trainId}/coaches", async (int trainId, AppDbContext db,
 .Produces<List<CoachStatusDto>>(200)
 .Produces(404);
 
+// GET /api/trains/{trainNumber}/links - Return helpful links for a train (simple templates)
+app.MapGet("/api/trains/{trainNumber}/links", (string trainNumber, string? date, HttpRequest request, ILogger<Program> logger) =>
+{
+    logger.LogInformation("GET /api/trains/{TrainNumber}/links date={Date}", trainNumber, date ?? "today");
+
+    var baseUrl = $"{request.Scheme}://{request.Host}";
+    var dt = string.IsNullOrWhiteSpace(date) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : date;
+
+    var links = new[]
+    {
+        new { title = "Official train status (API)", url = $"{baseUrl}/api/trains/{trainNumber}/status?date={dt}" },
+        new { title = "Train details page", url = $"{baseUrl}/trains/{trainNumber}?date={dt}" },
+        new { title = "NTES live train running status", url = $"https://www.ntes.in/" },
+        new { title = "RailYatri live train tracker", url = $"https://www.railyatri.in/live-train-status?train_num={trainNumber}" },
+        new { title = "ixigo train status", url = $"https://www.ixigo.com/train-tracking/{trainNumber}/train-status" },
+        new { title = "National Train Enquiry (IRCTC)", url = $"https://enquiry.indianrail.gov.in/mntes/" },
+        new { title = "Google: train status", url = $"https://www.google.com/search?q=Train+{trainNumber}+status+{dt}" },
+        new { title = "Live map (Google Maps)", url = $"https://www.google.com/maps/search/train+station+near+me" },
+        new { title = "Rail Madad helpline / complaint", url = $"https://railmadad.indianrailways.gov.in/" }
+    };
+
+    return Results.Ok(new { trainNumber, date = dt, links });
+})
+.WithName("GetTrainLinks")
+.WithTags("Trains")
+.Produces(200);
+
 // =============================================================================
 // CROWD REPORT ENDPOINTS
 // =============================================================================
